@@ -27,7 +27,7 @@ npm test        # runs the vitest unit suite
 4. `npx prisma migrate dev --name init`
 5. `npx prisma db seed`
 
-If you've already run setup once and just want fresh demo data: `npm run prisma:seed`.
+If you've already run setup once and just want fresh demo data: `npm run db:seed`.
 
 ## What's in the MVP
 
