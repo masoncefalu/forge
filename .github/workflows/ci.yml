@@ -28,19 +28,22 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run db:generate
 
       - name: Apply migrations to a scratch SQLite DB
-        run: npx prisma migrate deploy
+        run: npm run db:migrate
 
       - name: Seed demo data (regression check for schema/seed script)
-        run: npx prisma db seed
+        run: npm run db:seed
 
       - name: Lint
         run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Unit tests
         run: npm test
 
       - name: Build
-        run: npx next build
+        run: npm run build
