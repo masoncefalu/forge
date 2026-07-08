@@ -237,8 +237,7 @@ if needed — this is a summary.
    background workers, no real push notifications) — a deliberate scope boundary, not an
    oversight.
 7. **Auto-merge** — mechanics (merges once required checks + reviews pass), UI vs. GraphQL API
-   enabling, respects (does not bypass) branch protection; notes the
-   `enable_pr_auto_merge`/`disable_pr_auto_merge` MCP tools available in this environment.
+   enabling, respects (does not bypass) branch protection.
 
 **Secrets posture in one line:** nothing sensitive currently lives outside Actions secrets in this
 repo — `ci.yml`'s only "credential" is a scratch SQLite `file:` URL, not a real secret. Live audit

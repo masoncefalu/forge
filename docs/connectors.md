@@ -269,10 +269,7 @@ and/or check run. Nothing should be wired to email or Slack without an explicit 
 - **Enabling via API:** GraphQL mutation `enablePullRequestAutoMerge` (REST equivalent:
   `PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge` is for immediate merge, not auto-merge —
   auto-merge itself is GraphQL-only as of this writing), specifying the merge method
-  (`MERGE`/`SQUASH`/`REBASE`). The GitHub MCP tool available in this environment
-  (`enable_pr_auto_merge` / `disable_pr_auto_merge`) wraps this for convenience — it fails
-  gracefully if the repo doesn't have auto-merge enabled as a feature, or if the PR is already
-  cleanly mergeable.
+  (`MERGE`/`SQUASH`/`REBASE`).
 - **Prerequisite:** the repository setting "Allow auto-merge" (Settings → General → Pull Requests)
   must be turned on before any PR can use it — this is a repo-level opt-in independent of branch
   protection.
@@ -288,7 +285,7 @@ Confirmed via a live audit of `masoncefalu/forge` (branch-protection/Actions aud
 against `.github/workflows/ci.yml`):
 
 - **Auto-merge prerequisite: satisfied.** `GET /repos/masoncefalu/forge` →
-  `allow_auto_merge: true` at the repo level, so `enable_pr_auto_merge` works mechanically today.
+  `allow_auto_merge: true` at the repo level, so auto-merge can be enabled on PRs today.
 - **Branch protection on `main`: none.** `protected: false`, and `GET /rulesets` → `[]` — zero
   required status checks, zero required reviews, no rulesets at all. Force-push and branch
   deletion on `main` are both currently *allowed* as a direct consequence (nothing restricts
