@@ -23,6 +23,12 @@ export const REPORT_STATUSES = [
 ] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
+// PENDING is the default on creation and SUPPRESSED is vote-driven only
+// (lib/scoring.ts#isSuppressed via the vote route) — moderators can only
+// ever move a report to APPROVED or REJECTED, never set those two directly.
+export const MODERATABLE_STATUSES = ["APPROVED", "REJECTED"] as const;
+export type ModeratableStatus = (typeof MODERATABLE_STATUSES)[number];
+
 export const VOTE_TYPES = ["CONFIRMED", "DEAD"] as const;
 export type VoteType = (typeof VOTE_TYPES)[number];
 

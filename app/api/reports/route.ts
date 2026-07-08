@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
   if (!store) return NextResponse.json({ error: "Unknown store" }, { status: 404 });
 
   let productId = existingProductId as string | undefined;
+  let productName: string | undefined;
   if (productId) {
     // Trust boundary: the client supplies a raw productId, so it must be
     // verified to exist and to belong to the same retailer as the chosen
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    productName = existing.name;
   } else if (newProduct?.name) {
     const name = String(newProduct.name).trim();
     const upc = newProduct.upc ? String(newProduct.upc).trim() : null;
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
     productId = existingMatch
       ? existingMatch.id
       : (await prisma.product.create({ data: { retailerId: store.retailerId, name, upc, sku } })).id;
+    productName = existingMatch?.name ?? name;
   }
   if (!productId) {
     return NextResponse.json({ error: "productId or newProduct.name is required" }, { status: 400 });
@@ -164,7 +167,7 @@ export async function POST(req: NextRequest) {
           reportId: report.id,
           userId: recipient.id,
           score,
-          message: `New lead: ${newProduct?.name ?? "a product"} at ${store.name} scored ${score}.`,
+          message: `New lead: ${productName ?? "a product"} at ${store.name} scored ${score}.`,
         },
       });
       alertsCreated++;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/currentUser";
-import { REPORT_STATUSES } from "@/lib/constants";
+import { MODERATABLE_STATUSES } from "@/lib/constants";
 import { isSuppressed } from "@/lib/scoring";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,8 +12,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { status } = await req.json();
-  if (!REPORT_STATUSES.includes(status)) {
-    return NextResponse.json({ error: `status must be one of ${REPORT_STATUSES.join(", ")}` }, { status: 400 });
+  // PENDING is the pre-moderation default and SUPPRESSED is vote-driven only
+  // (see the vote route) — a moderator can only approve or reject, never set
+  // those two states directly through this endpoint.
+  if (!MODERATABLE_STATUSES.includes(status)) {
+    return NextResponse.json(
+      { error: `status must be one of ${MODERATABLE_STATUSES.join(", ")}` },
+      { status: 400 }
+    );
   }
 
   const existing = await prisma.report.findUnique({ where: { id: reportId }, include: { votes: true } });
