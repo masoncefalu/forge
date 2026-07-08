@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
   if (!store) return NextResponse.json({ error: "Unknown store" }, { status: 404 });
 
   let productId = existingProductId as string | undefined;
+
   if (!productId && newProduct?.name) {
     const created = await prisma.product.create({
       data: {
@@ -71,6 +72,12 @@ export async function POST(req: NextRequest) {
   }
   if (!productId) {
     return NextResponse.json({ error: "productId or newProduct.name is required" }, { status: 400 });
+  }
+
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) return NextResponse.json({ error: "Unknown product" }, { status: 404 });
+  if (product.retailerId !== store.retailerId) {
+    return NextResponse.json({ error: "Product retailer does not match the selected store" }, { status: 400 });
   }
 
   const now = new Date();
