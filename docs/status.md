@@ -150,10 +150,17 @@ failures occurred this run.
 
 **Code review pass (this branch):** two additional review lanes ran alongside the pipeline check —
 `code-api` reviewed `app/api/**`, the Prisma schema, and `lib/*.ts`; `code-ui` reviewed
-pages/components. **Both came back clean: zero bugs found, no code changes made**, with
-`tsc`/lint/test/build re-verified passing in both lanes. A follow-up `tests` pass confirmed no new
-regression tests were needed since nothing was fixed. Net result: this branch's code is a clean
-pass on top of `main` — no known correctness bugs beyond what's already tracked as tech debt above.
+pages/components. Both initially reported clean (zero bugs found, no code changes made), with
+`tsc`/lint/test/build re-verified passing in both lanes.
+
+**Correction (per `integration-lead`):** that initial clean pass **missed the same two real bugs
+that PR #4/#5 already diagnosed and fixed** — the vote-route race condition in
+`app/api/reports/[id]/vote/route.ts` and the missing `res.ok` check in
+`components/ModerationActions.tsx` (see "Next 5 steps" below). So "zero bugs found" describes what
+`code-api`/`code-ui` caught on their own, not a confirmation that the codebase has no known bugs —
+it doesn't. Whether `code-api`/`code-ui` should go back and land those two fixes on this branch, or
+whether they get picked up only via the eventual PR #4/#5 reconciliation, is pending `main`'s call
+(flagged by `integration-lead`, who is holding final integration on it).
 
 ## GitHub config status
 
