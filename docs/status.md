@@ -18,11 +18,13 @@ _Single source-of-truth status doc for Mason. Last updated: 2026-07-08 (agent-te
   confirm/dead voting, mock alerts, admin moderation, route planner, leaderboard, seed data, and a
   GitHub Actions CI workflow (`.github/workflows/`) running install → prisma generate/migrate/seed
   → lint → test → build.
-- **This pass adds:** a coordinated round of iOS-readiness work split across teammates —
-  CI/build verification, GitHub repo configuration review (branch protection, Actions, auto-merge),
-  a connectors reference doc, an iOS App Store roadmap, an App Store submission checklist, and
-  this status doc. See the section-by-section detail below for what's actually landed vs. still
-  pending as of this writing.
+- **This pass adds:** a coordinated round of iOS-readiness work split across teammates — CI/build
+  verification (`ci-build`), code review passes over `app/api/**`+Prisma+`lib/*.ts` and over
+  pages/components (`code-api`, `code-ui`, zero bugs found in either), a GitHub repo configuration
+  audit (`github-config`), a connectors reference doc (`docs/connectors.md`), an iOS App Store
+  roadmap (`docs/ios-roadmap.md`), an App Store submission checklist
+  (`docs/app-store-checklist.md`), and this status doc. All contributing teammates have reported —
+  see the section-by-section detail below.
 - **Important:** there are two **open, unmerged PRs already on GitHub** proposing near-identical
   work from what appears to be a prior/parallel run of this same exercise:
   - **PR #4** — "Stabilize MVP, fix two bugs, add iOS/App Store roadmap docs" (branch
@@ -234,12 +236,12 @@ side.
   approval" would block him from merging his own work unless he adds an admin bypass or a second
   reviewer (human or Copilot). Needs a call: solo-dev flow (no required reviews, rely on required
   CI checks) vs. gated-by-Copilot-review.
-- **Automation trigger style** — `github-config` confirms `main` currently has **no branch
-  protection at all** (no required reviews, no required status checks, force-push/delete both
-  unrestricted) and that repo-level auto-merge is technically enabled but **toothless without
-  branch protection** (it'll merge on zero conflicts, not on green CI). Needs Mason's call on how
-  much automation to turn on now: add branch protection + require the `build-and-test` check at
-  minimum, then decide if auto-merge-on-green is wanted.
+- **How much automation to turn on now** — `main` currently has **no branch protection at all**
+  (no required reviews, no required status checks, force-push/delete both unrestricted), and
+  repo-level auto-merge is technically enabled but **toothless without branch protection** (it'll
+  merge on zero conflicts, not on green CI). Minimum recommended fix: add branch protection +
+  require the `build-and-test` check (see "Next 5 steps"); then decide separately whether
+  auto-merge-on-green is wanted on top of that.
 - **Actions→external-API automation** — mechanically feasible (`workflow_dispatch` or
   `repository_dispatch` triggering an external endpoint, e.g. to kick off a Claude Code run from a
   PR comment), nothing built yet. Needs a decided target endpoint + a repo secret before it's worth
