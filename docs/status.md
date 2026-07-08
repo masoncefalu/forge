@@ -11,8 +11,10 @@ _Single source-of-truth status doc for Mason. Last updated: 2026-07-08 (agent-te
 
 ## Current repo state
 
-- **Branch:** `claude/forge-agent-team-ios-readiness`, based on `main` at `1079cfa` (no commits
-  added yet by this pass at time of writing — teammates' work lands as it completes).
+- **Branch:** `claude/forge-agent-team-ios-readiness`, based on `main` at `1079cfa`, now with 4
+  commits on top: docs (connectors/iOS roadmap/App Store checklist/status), a status.md
+  finalization commit, and two bug-fix commits (`95ed878` moderation-error surfacing, `82aafdc`
+  vote-route transaction wrap).
 - **`main`** already contains the full first vertical slice (see "What works" below): local feed,
   manual UPC/SKU search, report submission with compliance guardrail, confidence scoring,
   confirm/dead voting, mock alerts, admin moderation, route planner, leaderboard, seed data, and a
@@ -118,6 +120,14 @@ Mason:
 - **Fraud/poisoned-submission detection beyond dead-vote suppression** — rate limiting, photo dedupe
   via image hashing, trust-graph anomaly detection.
 - **Quiet hours / digest mode, offline in-store mode** — alert UX refinements.
+- **Regression tests for the two bugs fixed this session** (vote-route race condition,
+  `ModerationActions` silent failure — see "Current build status" below) — not added. Per the
+  `tests` teammate (task #9): this repo has no component-testing environment (`vitest.config.ts`
+  is node-only, no `@testing-library/react`) and no DB-backed/concurrency test harness; building
+  either was judged out of scope for a "small regression tests" pass. **Follow-up:** extract the
+  vote route's status-transition logic into a pure `lib/*.ts` function — the cheapest path to real
+  coverage later, consistent with this repo's existing pattern of keeping business logic
+  framework-free and unit-testable (see CLAUDE.md's coding standards).
 - Roadmap phases (0–4) are laid out in `docs/product-spec.md`; Phase 0 (this repo) is done, Phase
   1 (real auth, file upload, Postgres) is the next real milestone.
 
