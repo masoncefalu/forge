@@ -1,0 +1,158 @@
+// PennyForge data model — SQLite for local MVP, designed to port cleanly to Postgres later.
+//
+// SQLite notes:
+// - Prisma does not support `enum` on SQLite, so enum-like fields are String
+//   columns validated by lib/constants.ts + lib/compliance.ts at the app layer.
+// - Same-day duplicate prevention uses a REAL `reportDate` column in the
+//   composite unique below. SQLite prohibits expressions inside table-level
+//   UNIQUE constraints, so `UNIQUE(productId, storeId, userId, date(createdAt))`
+//   is a syntax error ("expressions prohibited in PRIMARY KEY and UNIQUE
+//   constraints"). We store the UTC calendar date explicitly instead.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  handle     String   @unique
+  role       String   @default("USER") // USER | CAPTAIN | ADMIN (lib/constants.ts)
+  trustScore Int      @default(50) // 0..100 reporter reputation
+  homeZip    String?
+  homeLat    Float?
+  homeLng    Float?
+  locale     String   @default("en") // en | es
+  createdAt  DateTime @default(now())
+
+  reports    Report[]
+  votes      ReportVote[]
+  alerts     Alert[]
+  routePlans RoutePlan[]
+}
+
+model Retailer {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  stores   Store[]
+  products Product[]
+}
+
+model Store {
+  id          String  @id @default(cuid())
+  retailerId  String
+  retailer    Retailer @relation(fields: [retailerId], references: [id])
+  name        String
+  storeNumber String?
+  address     String?
+  city        String
+  state       String // two-letter code, e.g. GA
+  zip         String
+  lat         Float
+  lng         Float
+
+  reports Report[]
+  alerts  Alert[]
+
+  @@index([state, zip])
+}
+
+model Product {
+  id         String  @id @default(cuid())
+  retailerId String
+  retailer   Retailer @relation(fields: [retailerId], references: [id])
+  name       String
+  upc        String?
+  sku        String?
+  category   String?
+  msrpCents  Int? // estimated retail value in cents, used for route ROI
+  imageUrl   String?
+
+  reports Report[]
+  alerts  Alert[]
+
+  @@index([upc])
+  @@index([sku])
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  storeId      String
+  store        Store    @relation(fields: [storeId], references: [id])
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  priceCents   Int // 1 = a penny item
+  dealType     String // PENNY | CLEARANCE
+  evidenceType String // RECEIPT | SHELF_TAG_PHOTO | PRODUCT_PHOTO | TEXT_ONLY
+  evidenceUrl  String? // placeholder URL in MVP; real upload later
+  sourceType   String // allowlist only — see lib/compliance.ts
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED | SUPPRESSED
+  // Status held immediately before an auto-suppression (2+ dead votes), so
+  // that when enough confirms arrive to reverse suppression, the report is
+  // restored to what it was (e.g. APPROVED) instead of being reset to
+  // PENDING and losing prior moderation. Null whenever not suppressed.
+  previousStatus String?
+  notes        String?
+  // Real UTC calendar date (midnight) of the report. Exists so the composite
+  // unique below can prevent same-user same-day duplicates — SQLite cannot use
+  // date(createdAt) inside a UNIQUE constraint (expressions are prohibited).
+  reportDate   DateTime
+  createdAt    DateTime @default(now())
+
+  votes  ReportVote[]
+  alerts Alert[]
+
+  @@unique([productId, storeId, userId, reportDate])
+  @@index([storeId, status])
+  @@index([productId, storeId])
+}
+
+model ReportVote {
+  id        String   @id @default(cuid())
+  reportId  String
+  report    Report   @relation(fields: [reportId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  vote      String // CONFIRMED | DEAD
+  createdAt DateTime @default(now())
+
+  @@unique([reportId, userId]) // one vote per user per report (vote can be changed)
+}
+
+model Alert {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id])
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  reportId  String?
+  report    Report?   @relation(fields: [reportId], references: [id])
+  userId    String // recipient
+  user      User      @relation(fields: [userId], references: [id])
+  score     Int // confidence score at alert time
+  message   String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId, createdAt])
+  @@index([productId, storeId, createdAt]) // alert dedupe window lookups
+}
+
+model RoutePlan {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  name       String
+  stopsJson  String // JSON array of {storeId, storeName, distanceMiles, expectedValue, routeScore}
+  totalScore Float
+  createdAt  DateTime @default(now())
+}
