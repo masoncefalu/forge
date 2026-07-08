@@ -36,8 +36,10 @@ _Single source-of-truth status doc for Mason. Last updated: 2026-07-08 (agent-te
   - **PR #5** — "Add iOS roadmap docs and fix vote race condition" (branch
     `claude/intelligent-shannon-ndmfh6`) — same shape of change, same head commit SHA as PR #4.
   - Neither is merged. Both target `main` and both duplicate the doc set this branch is producing.
-    **Mason needs to pick one line of work and close out the others** — see "Decisions needed"
-    below.
+    **This branch has now independently landed the same two bug fixes** (see "Current build
+    status" below), so picking this branch as canonical does not lose that part of #4/#5's work.
+    **Mason still needs to pick one line of work and close out the others** — see "Decisions
+    needed" below.
 
 ## What was merged (PR history on `main`)
 
@@ -160,17 +162,23 @@ failures occurred this run.
 
 **Code review pass (this branch):** two additional review lanes ran alongside the pipeline check —
 `code-api` reviewed `app/api/**`, the Prisma schema, and `lib/*.ts`; `code-ui` reviewed
-pages/components. Both initially reported clean (zero bugs found, no code changes made), with
-`tsc`/lint/test/build re-verified passing in both lanes.
+pages/components. Both initially reported clean (zero bugs found, no code changes made) — but that
+first pass **missed the same two real bugs that PR #4/#5 had already diagnosed and fixed**
+(`integration-lead` caught the gap while preparing final integration).
 
-**Correction (per `integration-lead`):** that initial clean pass **missed the same two real bugs
-that PR #4/#5 already diagnosed and fixed** — the vote-route race condition in
-`app/api/reports/[id]/vote/route.ts` and the missing `res.ok` check in
-`components/ModerationActions.tsx` (see "Next 5 steps" below). So "zero bugs found" describes what
-`code-api`/`code-ui` caught on their own, not a confirmation that the codebase has no known bugs —
-it doesn't. Whether `code-api`/`code-ui` should go back and land those two fixes on this branch, or
-whether they get picked up only via the eventual PR #4/#5 reconciliation, is pending `main`'s call
-(flagged by `integration-lead`, who is holding final integration on it).
+**Both bugs are now fixed, verified, and committed on this branch:**
+
+- **`82aafdc` — vote route race condition** (`app/api/reports/[id]/vote/route.ts`): wrapped the
+  trust-score/status read-modify-write sequence in `prisma.$transaction` to fix a lost-update race
+  when two votes land on the same report close together.
+- **`95ed878` — `ModerationActions` silent failure** (`components/ModerationActions.tsx`): added a
+  `res.ok` check so a blocked moderation action (403/409, e.g. approving a community-suppressed
+  report) surfaces an error instead of silently no-op'ing.
+- All 4 verification commands (`tsc`/`npm run lint`/`npm test`/`npx next build`) passed clean after
+  each fix, per `code-api`'s and `code-ui`'s reports.
+- **Not done:** regression tests for either fix — see "What is unfinished" above for why (no
+  component-testing environment, no DB-concurrency harness) and the recommended follow-up (extract
+  the vote route's transition logic into a testable `lib/*.ts` function).
 
 ## GitHub config status
 
@@ -245,8 +253,10 @@ side.
 - **Duplicate open PRs (#4, #5):** both propose the same doc set (`docs/ios-roadmap.md`,
   `docs/app-store-checklist.md`, `docs/connectors.md`, `docs/status.md`) and the same two bug
   fixes (vote-route race, moderation-action error surfacing), from what looks like a
-  prior/parallel run of this same exercise. Pick one to carry forward (or this branch's version,
-  once complete) and close the others to avoid merge conflicts and duplicated review effort.
+  prior/parallel run of this same exercise. This branch has now independently landed the same doc
+  set and the same two bug fixes, so there's no unique content in #4/#5 to lose. Pick one line of
+  work to carry forward (recommend: this branch, since it's furthest along) and close the others
+  to avoid merge conflicts and duplicated review effort.
 - **Branch protection style** — classic "Branch protection rules" vs. the newer "Rulesets" UI;
   functionally similar, but pick one so the repo doesn't end up half-configured on both.
 - **Required-approvals count for `main`** — Mason is the sole collaborator today, so "require 1
@@ -321,7 +331,7 @@ side.
 4. Scope and schedule Phase 1 (real auth via `lib/currentUser.ts` swap, Postgres/Supabase
    migration, real file upload for evidence) — this unblocks both a real hosted iOS backend and
    receipt OCR later, and is a hard prerequisite for any public App Store submission.
-5. Land the two correctness bug fixes already identified upstream (vote-route race condition in
-   `app/api/reports/[id]/vote/route.ts`, missing `res.ok` check in
-   `components/ModerationActions.tsx`) — cheap, low-risk, already diagnosed in PR #4/#5; this
-   branch's own `code-api`/`code-ui` review passes found no additional bugs.
+5. ~~Land the two correctness bug fixes already identified upstream~~ **Done** — both fixed,
+   verified (`tsc`/lint/test/build clean), and committed on this branch (`82aafdc`, `95ed878`).
+   Remaining follow-up: extract the vote route's status-transition logic into a pure `lib/*.ts`
+   function so it's unit-testable, then add the regression tests that were out of scope this pass.
