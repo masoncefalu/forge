@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (suppressed && report.status !== "SUPPRESSED") {
     await prisma.report.update({ where: { id: reportId }, data: { status: "SUPPRESSED" } });
   } else if (!suppressed && report.status === "SUPPRESSED") {
-    await prisma.report.update({ where: { id: reportId }, data: { status: "PENDING" } });
+    await prisma.report.update({ where: { id: reportId }, data: { status: "APPROVED" } });
   }
 
   return NextResponse.json({ confirms, deads, suppressed });

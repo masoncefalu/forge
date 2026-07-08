@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     dealType,
   });
 
-  // Mock fan-out: alert every other user in the same state, deduped per
+  // Mock fan-out: alert every other user, deduped per recipient by
   // (product, store) within a 24h window.
   let alertsCreated = 0;
   const nearbyUsers = await prisma.user.findMany({
@@ -131,9 +131,13 @@ export async function POST(req: NextRequest) {
   });
 
   for (const recipient of nearbyUsers) {
+    const recipientRecentAlerts = recentAlerts
+      .filter((a) => a.userId === recipient.id)
+      .map((a) => ({ productId: a.productId, storeId: a.storeId, createdAt: a.createdAt }));
+
     if (
       shouldCreateAlert(
-        recentAlerts.map((a) => ({ productId: a.productId, storeId: a.storeId, createdAt: a.createdAt })),
+        recipientRecentAlerts,
         { productId, storeId, score, now }
       )
     ) {
@@ -148,20 +152,6 @@ export async function POST(req: NextRequest) {
         },
       });
       alertsCreated++;
-      // Only need to prove dedupe once per store+product for this batch —
-      // real fan-out would alert all qualifying recipients, but the 24h
-      // window key is per (product, store), not per recipient.
-      recentAlerts.push({
-        id: "pending",
-        productId,
-        storeId,
-        reportId: report.id,
-        userId: recipient.id,
-        score,
-        message: "",
-        createdAt: now,
-        readAt: null,
-      });
     }
   }
 
