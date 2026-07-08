@@ -9,6 +9,11 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unknown user" }, { status: 404 });
 
   const jar = await cookies();
-  jar.set(USER_COOKIE, user.id, { path: "/" });
+  jar.set(USER_COOKIE, user.id, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
   return NextResponse.json({ ok: true });
 }

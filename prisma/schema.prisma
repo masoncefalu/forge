@@ -96,6 +96,11 @@ model Report {
   evidenceUrl  String? // placeholder URL in MVP; real upload later
   sourceType   String // allowlist only — see lib/compliance.ts
   status       String   @default("PENDING") // PENDING | APPROVED | REJECTED | SUPPRESSED
+  // Status held immediately before an auto-suppression (2+ dead votes), so
+  // that when enough confirms arrive to reverse suppression, the report is
+  // restored to what it was (e.g. APPROVED) instead of being reset to
+  // PENDING and losing prior moderation. Null whenever not suppressed.
+  previousStatus String?
   notes        String?
   // Real UTC calendar date (midnight) of the report. Exists so the composite
   // unique below can prevent same-user same-day duplicates — SQLite cannot use

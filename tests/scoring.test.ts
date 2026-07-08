@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { confidenceScore, isSuppressed, applyTrustDelta } from "@/lib/scoring";
+import { confidenceScore, isSuppressed, applyTrustDelta, applyVoteChange } from "@/lib/scoring";
 
 describe("confidence scoring", () => {
   it("ranks evidence types receipt > shelf tag > product photo > text-only", () => {
@@ -90,5 +90,46 @@ describe("reporter trust adjustments", () => {
     expect(applyTrustDelta(50, "DEAD")).toBe(47);
     expect(applyTrustDelta(99, "CONFIRMED")).toBe(100);
     expect(applyTrustDelta(1, "DEAD")).toBe(0);
+  });
+});
+
+describe("net trust delta on vote upsert (no double-counting)", () => {
+  it("applies the full delta for a brand-new vote (no prior vote)", () => {
+    expect(applyVoteChange(50, null, "CONFIRMED")).toBe(52);
+    expect(applyVoteChange(50, null, "DEAD")).toBe(47);
+  });
+
+  it("resubmitting the same vote is a no-op", () => {
+    expect(applyVoteChange(52, "CONFIRMED", "CONFIRMED")).toBe(52);
+    expect(applyVoteChange(47, "DEAD", "DEAD")).toBe(47);
+  });
+
+  it("repeatedly resubmitting the same vote can never inflate trust past one delta", () => {
+    let trust = 50;
+    for (let i = 0; i < 10; i++) {
+      trust = applyVoteChange(trust, i === 0 ? null : "CONFIRMED", "CONFIRMED");
+    }
+    expect(trust).toBe(52);
+  });
+
+  it("switching CONFIRMED -> DEAD undoes the old bonus and applies the new penalty", () => {
+    const afterConfirm = applyTrustDelta(50, "CONFIRMED"); // 52
+    const afterSwitch = applyVoteChange(afterConfirm, "CONFIRMED", "DEAD");
+    expect(afterSwitch).toBe(47); // back to 50, then -3
+  });
+
+  it("switching DEAD -> CONFIRMED undoes the old penalty and applies the new bonus", () => {
+    const afterDead = applyTrustDelta(50, "DEAD"); // 47
+    const afterSwitch = applyVoteChange(afterDead, "DEAD", "CONFIRMED");
+    expect(afterSwitch).toBe(52); // back to 50, then +2
+  });
+
+  it("clamps correctly when undoing a delta at a boundary", () => {
+    // Undoing a CONFIRMED vote (+2) at trust=1 clamps the revert step at 0
+    // before the new DEAD penalty (-3) is applied.
+    expect(applyVoteChange(1, "CONFIRMED", "DEAD")).toBe(0);
+    // Undoing a DEAD vote (-3, i.e. adding 3 back) at trust=99 clamps the
+    // revert step at 100 before the new CONFIRMED bonus (+2) is applied.
+    expect(applyVoteChange(99, "DEAD", "CONFIRMED")).toBe(100);
   });
 });

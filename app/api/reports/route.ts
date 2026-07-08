@@ -17,7 +17,7 @@ import { getCurrentUser } from "@/lib/currentUser";
 import { validateReportInput, ComplianceError } from "@/lib/compliance";
 import { toReportDate, isUniqueViolation } from "@/lib/reports";
 import { confidenceScore } from "@/lib/scoring";
-import { shouldCreateAlert, ALERT_DEDUPE_WINDOW_MS } from "@/lib/alerts";
+import { shouldCreateAlert, pickNearbyRecipients, ALERT_DEDUPE_WINDOW_MS } from "@/lib/alerts";
 import { DEAL_TYPES, EVIDENCE_TYPES } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
@@ -58,16 +58,41 @@ export async function POST(req: NextRequest) {
   if (!store) return NextResponse.json({ error: "Unknown store" }, { status: 404 });
 
   let productId = existingProductId as string | undefined;
-  if (!productId && newProduct?.name) {
-    const created = await prisma.product.create({
-      data: {
+  if (productId) {
+    // Trust boundary: the client supplies a raw productId, so it must be
+    // verified to exist and to belong to the same retailer as the chosen
+    // store — otherwise a forged request can create a report referencing a
+    // mismatched or nonexistent product, corrupting search/feed/alerts.
+    const existing = await prisma.product.findUnique({ where: { id: productId } });
+    if (!existing) {
+      return NextResponse.json({ error: "Unknown product" }, { status: 404 });
+    }
+    if (existing.retailerId !== store.retailerId) {
+      return NextResponse.json(
+        { error: "Product does not belong to this store's retailer" },
+        { status: 400 }
+      );
+    }
+  } else if (newProduct?.name) {
+    const name = String(newProduct.name).trim();
+    const upc = newProduct.upc ? String(newProduct.upc).trim() : null;
+    const sku = newProduct.sku ? String(newProduct.sku).trim() : null;
+
+    // Resolve to an existing product for this retailer before creating a
+    // new row. Same-day duplicate prevention is keyed by productId, so
+    // always minting a fresh Product for "new product" would let the same
+    // real-world item (matched by UPC, SKU, or name) bypass that guard and
+    // spam duplicate leads/alerts.
+    const existingMatch = await prisma.product.findFirst({
+      where: {
         retailerId: store.retailerId,
-        name: newProduct.name,
-        upc: newProduct.upc || null,
-        sku: newProduct.sku || null,
+        OR: [...(upc ? [{ upc }] : []), ...(sku ? [{ sku }] : []), { name }],
       },
     });
-    productId = created.id;
+
+    productId = existingMatch
+      ? existingMatch.id
+      : (await prisma.product.create({ data: { retailerId: store.retailerId, name, upc, sku } })).id;
   }
   if (!productId) {
     return NextResponse.json({ error: "productId or newProduct.name is required" }, { status: 400 });
@@ -112,24 +137,26 @@ export async function POST(req: NextRequest) {
     dealType,
   });
 
-  // Mock fan-out: alert every other user in the same state, deduped per
-  // (product, store) within a 24h window.
+  // Mock fan-out: alert users within ALERT_RADIUS_MILES of the store
+  // (excluding the reporter, and skipping anyone without known home
+  // coordinates). Dedupe is per RECIPIENT: each user gets at most one alert
+  // for this (product, store) pair per 24h window, regardless of how many
+  // reports land on it — but every qualifying recipient still gets alerted.
   let alertsCreated = 0;
-  const nearbyUsers = await prisma.user.findMany({
-    where: { id: { not: user.id } },
-  });
+  const allUsers = await prisma.user.findMany();
+  const recipients = pickNearbyRecipients(allUsers, user.id, store);
+
   const windowStart = new Date(now.getTime() - ALERT_DEDUPE_WINDOW_MS);
   const recentAlerts = await prisma.alert.findMany({
     where: { productId, storeId, createdAt: { gte: windowStart } },
   });
 
-  for (const recipient of nearbyUsers) {
-    if (
-      shouldCreateAlert(
-        recentAlerts.map((a) => ({ productId: a.productId, storeId: a.storeId, createdAt: a.createdAt })),
-        { productId, storeId, score, now }
-      )
-    ) {
+  for (const recipient of recipients) {
+    const recipientAlerts = recentAlerts
+      .filter((a) => a.userId === recipient.id)
+      .map((a) => ({ productId: a.productId, storeId: a.storeId, createdAt: a.createdAt }));
+
+    if (shouldCreateAlert(recipientAlerts, { productId, storeId, score, now })) {
       await prisma.alert.create({
         data: {
           productId,
@@ -141,20 +168,6 @@ export async function POST(req: NextRequest) {
         },
       });
       alertsCreated++;
-      // Only need to prove dedupe once per store+product for this batch —
-      // real fan-out would alert all qualifying recipients, but the 24h
-      // window key is per (product, store), not per recipient.
-      recentAlerts.push({
-        id: "pending",
-        productId,
-        storeId,
-        reportId: report.id,
-        userId: recipient.id,
-        score,
-        message: "",
-        createdAt: now,
-        readAt: null,
-      });
     }
   }
 

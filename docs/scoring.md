@@ -62,17 +62,26 @@ isSuppressed = deads >= 2 && deads > confirms
 
 Suppressed reports flip to `status = SUPPRESSED`, dropping out of the feed (`lib/leads.ts`
 `getFeedLeads`), alerts, and the route planner (`lib/routePlanner.ts` only pulls
-`PENDING`/`APPROVED`). Suppression reverses automatically if enough confirms arrive later.
+`PENDING`/`APPROVED`). Suppression reverses automatically if enough confirms arrive later — the
+status held just before suppression is saved to `Report.previousStatus` and restored exactly
+(e.g. an already-`APPROVED` report comes back as `APPROVED`, not `PENDING`), so reversal never
+re-adds a previously-moderated report to the admin queue.
 
 ## Alert quality controls
 
 ```
-shouldCreateAlert = score >= ALERT_THRESHOLD (60)
-                    && no existing alert for (productId, storeId) within the last 24h
+recipients        = pickNearbyRecipients(allUsers, reporterId, store, ALERT_RADIUS_MILES)
+                     // excludes the reporter and anyone without home coordinates
+shouldCreateAlert  = score >= ALERT_THRESHOLD (60)
+                     && no alert already sent to THIS recipient for (productId, storeId)
+                        within the last 24h
 ```
 
-One alert per product+store pair per day, regardless of how many reports land on it — this is the
-"no random Discord chaos" promise made mechanical. See `lib/alerts.ts`.
+Fan-out targets users within `ALERT_RADIUS_MILES` (75mi default) of the reporting store, via
+haversine distance (`lib/geo.ts`). Dedupe is scoped **per recipient**: each qualifying user gets at
+most one alert for a given (product, store) pair per 24h, no matter how many reports land on it —
+but every qualifying nearby user still gets alerted once, not just the first one processed. This is
+the "no random Discord chaos" promise made mechanical. See `lib/alerts.ts`.
 
 ## Route ROI score
 

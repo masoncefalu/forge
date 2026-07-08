@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldCreateAlert, ALERT_THRESHOLD } from "@/lib/alerts";
+import { shouldCreateAlert, pickNearbyRecipients, ALERT_THRESHOLD, ALERT_RADIUS_MILES } from "@/lib/alerts";
 
 describe("alert quality controls and dedupe", () => {
   const now = new Date("2026-07-08T12:00:00Z");
@@ -40,5 +40,44 @@ describe("alert quality controls and dedupe", () => {
     expect(
       shouldCreateAlert(existing, { productId: "p1", storeId: "s2", score: 80, now })
     ).toBe(true);
+  });
+});
+
+describe("nearby recipient fan-out", () => {
+  // Store in downtown Atlanta.
+  const store = { lat: 33.7726, lng: -84.3663 };
+
+  it("includes a user well within the alert radius", () => {
+    const nearby = { id: "u-near", homeLat: 33.75, homeLng: -84.39 }; // a few miles away
+    const result = pickNearbyRecipients([nearby], "reporter", store);
+    expect(result.map((u) => u.id)).toContain("u-near");
+  });
+
+  it("excludes a user far outside the alert radius", () => {
+    const farAway = { id: "u-far", homeLat: 40.7128, homeLng: -74.006 }; // New York, ~750mi away
+    const result = pickNearbyRecipients([farAway], "reporter", store);
+    expect(result.map((u) => u.id)).not.toContain("u-far");
+  });
+
+  it("excludes the reporter even if they're the closest user", () => {
+    const reporter = { id: "reporter", homeLat: 33.7726, homeLng: -84.3663 };
+    const result = pickNearbyRecipients([reporter], "reporter", store);
+    expect(result).toHaveLength(0);
+  });
+
+  it("excludes users with no known home coordinates", () => {
+    const noCoords = { id: "u-unknown", homeLat: null, homeLng: null };
+    const result = pickNearbyRecipients([noCoords], "reporter", store);
+    expect(result).toHaveLength(0);
+  });
+
+  it("respects a custom radius override", () => {
+    const midDistance = { id: "u-mid", homeLat: 34.5, homeLng: -84.3663 }; // ~50mi north
+    expect(pickNearbyRecipients([midDistance], "reporter", store, 10)).toHaveLength(0);
+    expect(pickNearbyRecipients([midDistance], "reporter", store, 100)).toHaveLength(1);
+  });
+
+  it("exports a sane default radius", () => {
+    expect(ALERT_RADIUS_MILES).toBeGreaterThan(0);
   });
 });

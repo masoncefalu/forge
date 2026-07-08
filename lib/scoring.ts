@@ -102,7 +102,27 @@ export function ageInDays(from: Date, now: Date = new Date()): number {
 
 /** Reporter reputation adjustments applied when votes land on their reports. */
 export const TRUST_DELTA = { CONFIRMED: 2, DEAD: -3 } as const;
+type VoteKind = keyof typeof TRUST_DELTA;
 
-export function applyTrustDelta(current: number, vote: "CONFIRMED" | "DEAD"): number {
+export function applyTrustDelta(current: number, vote: VoteKind): number {
   return clamp(current + TRUST_DELTA[vote], 0, 100);
+}
+
+/**
+ * Net trust adjustment for a vote upsert. A voter can change or resubmit
+ * their vote on the same report at any time (ReportVote is one-per-user),
+ * so naively re-applying applyTrustDelta on every vote call would let a
+ * single user inflate or crater a reporter's trust by repeatedly toggling
+ * their vote. This applies only the DIFFERENCE: unchanged votes are a
+ * no-op, and a changed vote first undoes the old delta, then applies the
+ * new one — each step still clamped to [0, 100].
+ */
+export function applyVoteChange(
+  currentTrust: number,
+  oldVote: VoteKind | null,
+  newVote: VoteKind
+): number {
+  if (oldVote === newVote) return clamp(currentTrust, 0, 100);
+  const reverted = oldVote ? clamp(currentTrust - TRUST_DELTA[oldVote], 0, 100) : currentTrust;
+  return applyTrustDelta(reverted, newVote);
 }
