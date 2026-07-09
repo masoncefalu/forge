@@ -227,7 +227,7 @@ Tailwind 3.4 · Prisma 6.7 + SQLite · Vitest 3 · tsx (seeding).
 | Apprise | 1–2 | Alert dispatch fan-out: email + web push first; Discord webhook/Telegram as delivery channels only |
 | Tesseract / receipt-parser lineage → Apple Vision on-device | 2–3 | Receipt OCR; on-device parsing is both a privacy feature and an App Review asset |
 | Impact / Walmart Affiliate API / eBay Partner Network | 2 | Catalog enrichment + resale comps via official affiliate feeds — never scraped |
-| Capacitor + Fastlane + Codemagic (scaffolded in-repo) | 3–4 | iOS wrapper + signed CI builds; activation via `npm run ios:bootstrap`. Verified wiring: ASC API key + Fastlane `match`/automatic signing (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8`/`DEVELOPER_TEAM_ID`/`FASTLANE_APPLE_ID`/`CAPACITOR_SERVER_URL`), **not** a manual `.p12`/`.mobileprovision` flow — see R4. Codemagic is primary, GitHub Actions (`ios-release.yml`) is the fallback/readiness-check runner — see R5. Codemagic additionally needs `APP_STORE_APPLE_ID` (and `BUNDLE_ID`) set in its own `pennyforge_ios` environment group — see R11. |
+| Capacitor + Fastlane + Codemagic (scaffolded in-repo) | 3–4 | iOS wrapper + signed CI builds; activation via `npm run ios:bootstrap`. Verified wiring: ASC API key + Fastlane `match`/automatic signing (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8`/`DEVELOPER_TEAM_ID`/`FASTLANE_APPLE_ID`/`CAPACITOR_SERVER_URL`), **not** a manual `.p12`/`.mobileprovision` flow — see R4. Codemagic is primary, GitHub Actions (`ios-release.yml`) is the fallback/readiness-check runner — see R5. Codemagic additionally needs `APP_STORE_APPLE_ID` (and `BUNDLE_ID`) set in its own `pennyforge_ios` environment group — see R11. `capacitor.config.ts`'s `webDir: 'public'` previously pointed at a missing directory; fixed by adding a placeholder `public/index.html` — see R13. |
 | Postgres (Supabase) + pg-boss | 1 | Hosted DB + job queue when concurrent writes/hosting require it. `.env.example` stages Supabase env vars specifically; confirm with Mason before Phase 1 kickoff — see R6 |
 | next-intl | 1 | i18n scaffolding so Spanish is a locale file, not a refactor |
 
@@ -237,10 +237,12 @@ Tailwind 3.4 · Prisma 6.7 + SQLite · Vitest 3 · tsx (seeding).
 
 1. **Receipt-verified confidence** — evidence weighting nobody in the niche does.
 2. **Waze model** — reporter reputation rises on confirmations, falls on flags; target UX is
-   badges, never raw scores (not yet implemented — see R10).
+   badges, never raw scores (not yet implemented — `ConfidenceBadge` currently renders the raw
+   numeric score directly — see R10).
 3. **Route ROI** — trips ranked by confidence × value ÷ cost; a Saturday hunt with math behind it.
 4. **Honest freshness** — aggressive decay, dead-vote suppression, target UX is "last confirmed
-   6h ago" visibility (not yet implemented — see R10).
+   6h ago" visibility (not yet implemented — the UI only shows report creation-time age via
+   `timeAgo`, no last-confirmed timestamp exists in `LeadView` or on screen — see R10).
 5. **Contributor economics** — verified contributions earn Pro credits; the moat compounds and can't be scraped.
 6. **Compliance as moat** — when C&Ds hit gray-data rivals, PennyForge keeps standing.
 7. **Bilingual from day one** (Phase 1+) — Spanish UX the niche ignores.
@@ -452,8 +454,10 @@ Everything a fresh Claude Code session needs to work on PennyForge safely:
   against `ios-release.yml` and `tooling/ios/fastlane/Fastfile` directly (see R4).
   **Codemagic (the primary runner, R5) needs its own, separate contract:** `APP_STORE_APPLE_ID`
   and `BUNDLE_ID` in a `pennyforge_ios` environment group inside the Codemagic dashboard, not
-  GitHub secrets — `codemagic.yaml` fails fast in its build-number step if `APP_STORE_APPLE_ID` is
-  unset (verified by reading `codemagic.yaml` directly). See R11. `docs/github-secrets.md` and
+  GitHub secrets — the build-number-bump step (`codemagic.yaml`, around lines 52–59) hard-fails if
+  `APP_STORE_APPLE_ID` is unset, and `BUNDLE_ID` (`com.pennyforge.app`) is already defaulted in the
+  `vars` block (around lines 19–28). Both must be provisioned in Codemagic's environment-variable
+  UI before the `ios-testflight` workflow can run. See R11. `docs/github-secrets.md` and
   `docs/credentials-needed.md` describe a superseded manual-signing secret set; a docs-correction
   pass should reconcile them before anyone provisions credentials. Never paste secrets in chat.
 - **Capacitor `webDir` gap (verified 2026-07-09, fixed in this PR — see R13):** `capacitor.config.ts`
@@ -549,17 +553,19 @@ BUILD THE LOCAL MVP VERTICAL SLICE (no external paid services, everything runnab
 - npm scripts: dev/build/test/lint/typecheck, setup (install+migrate+seed), and a `verify`
   script running lint+typecheck+test+build.
 
-UX RULES: users see badges, never raw score numbers, except the lead-detail breakdown that
-explains "why this lead scores X". Show "last confirmed X ago" freshness. Footer disclaimer on
-every pricing surface: community-reported, varies by store, nothing guaranteed, not affiliated
-with any retailer, be kind to store employees. Design language: dark-first, monospace for
+UX RULES TO BUILD (these are NOT yet implemented — do not treat the current raw-number badge as
+a regression to preserve or "fix"; building the badge system described here is part of the work):
+users should see badges, never raw score numbers, except the lead-detail breakdown that explains
+"why this lead scores X". Show "last confirmed X ago" freshness. Footer disclaimer on every
+pricing surface: community-reported, varies by store, nothing guaranteed, not affiliated with any
+retailer, be kind to store employees. Design language: dark-first, monospace for
 prices/SKUs/timestamps, one yellow accent (#FFCE00) reserved for verified-deal moments; no
-starbursts, no emoji chrome, no coupon-blog styling. NOTE if the workspace already has the MVP
-built: as of 2026-07-09, `components/ConfidenceBadge.tsx` renders the raw numeric score and no
-screen shows "last confirmed X ago" — this is a known gap against the rule above, not a signal
-that the rule changed. Fix the component (non-numeric tone/label, e.g. a confidence tier word or
-the Verification Seal format) and surface `lastConfirmAgeDays` (already computed in
-`lib/leads.ts#toLeadView`) in the UI rather than reinterpreting the requirement away.
+starbursts, no emoji chrome, no coupon-blog styling. As of 2026-07-09,
+`components/ConfidenceBadge.tsx` renders the raw numeric score directly (`{score}`) with no
+label-only badge, and no screen shows "last confirmed X ago" — `lastConfirmAgeDays` is already
+computed in `lib/leads.ts#toLeadView` but never surfaced in the UI. Fix the component (non-numeric
+tone/label, e.g. a confidence tier word or the Verification Seal format) and display
+`lastConfirmAgeDays` rather than reinterpreting the requirement away.
 
 DO NOT BUILD YET (deferred; schema may anticipate them but no implementation): real auth, camera
 barcode scanning, receipt OCR, real push/email delivery, Postgres migration, TSP multi-stop
