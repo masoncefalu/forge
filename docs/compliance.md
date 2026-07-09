@@ -3,6 +3,11 @@
 This is a hard boundary, not a guideline. Enforcement lives in `lib/compliance.ts` and is covered
 by `tests/compliance.test.ts`.
 
+For the fuller compliance, legal, and privacy guardrail suite — risk matrix, UGC policy, retailer
+trademark guidance, privacy policy outline, data retention, location and receipt/photo privacy,
+moderator safety, app store risk, and ethical shopping guidelines — see
+[`docs/compliance/`](./compliance/README.md).
+
 ## Allowed data sources (allowlist)
 
 PennyForge accepts only **first-hand, in-store, user-generated evidence**:

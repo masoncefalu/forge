@@ -31,7 +31,7 @@ accidentally open a source; it can only keep one closed.
 | Source | Policy status | Conditions or reason | Enforcement layer |
 |---|---|---|---|
 | First-hand in-store observation reports | Allowed | Reporter personally saw the item/price in a store they visited as an ordinary shopper. | Code allowlist (`IN_STORE_OBSERVATION`) |
-| User-submitted receipts | Allowed with conditions | Reporter's own purchase, their own receipt. Phase 1 file upload must strip/redact receipt PII (card digits, loyalty IDs) before display — see `docs/compliance/risk-matrix.md`. | Code allowlist (`RECEIPT_PURCHASE`); upload handling is Phase 1 |
+| User-submitted receipts | Allowed with conditions | Reporter's own purchase, their own receipt. Phase 1 file upload must strip/redact receipt PII (card digits, loyalty IDs) before display — see `docs/compliance/receipt-photo-privacy.md`. | Code allowlist (`RECEIPT_PURCHASE`); upload handling is Phase 1 |
 | User-submitted shelf-tag photos | Allowed with conditions | Photo taken personally, of customer-facing shelf tags/clearance stickers only — never back-room, employee-only, or POS screens (that is `EMPLOYEE_INTERNAL_SYSTEM`, forbidden). | Code allowlist (`SHELF_TAG`) |
 | Public store flyers / posted signage | Allowed | Store-published, customer-facing material. | Code allowlist (`STORE_FLYER_PUBLIC`) |
 | Community confirmations (CONFIRMED votes) | Allowed | Voter personally re-verified the lead in store. One vote per user per report (`ReportVote` unique constraint in `prisma/schema.prisma`). | Policy + schema constraint |
