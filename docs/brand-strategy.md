@@ -254,8 +254,8 @@ name in marketing).
 >
 > Each report earns a confidence score from 0 to 100 based on evidence strength, the reporter's
 > track record, community confirmations, and how recently the item was seen. When enough shoppers
-> mark a find dead, it's automatically suppressed from the feed — so you spend your time on items
-> that are still on the shelf.
+> mark a find dead — outnumbering any confirms — it's automatically suppressed from the feed, so
+> you spend your time on items that are still on the shelf.
 >
 > **How it works**
 > - Browse a local feed of clearance and penny-priced finds, filtered by state, store, and
@@ -320,9 +320,9 @@ Grounded in `lib/compliance.ts` and the existing footer in `app/layout.tsx`. Ite
 > store signage. That's the complete list. We do not scrape retailer or third-party websites. We
 > do not access retailers' internal systems, private endpoints, or employee tools. We do not
 > ingest, repurchase, or repost data from other deal services. And we never use bots or automated
-> tools to probe store inventory or prices. Our submission system enforces this at the door: any
-> report that doesn't declare a valid first-hand source type — an in-store observation, a receipt,
-> a shelf-tag photo, or public store signage — is rejected before it's ever saved. (What we can't
+> tools to probe store inventory or prices. Our submission system requires every report to declare
+> one of these source types at the door — an in-store observation, a receipt, a shelf-tag photo, or
+> public store signage — and rejects anything that doesn't before it's ever saved. (What we can't
 > do is verify a shopper's real-world honesty beyond the source type and evidence they provide —
 > that's what community confirm/dead voting and reporter trust scores are for.)
 
@@ -331,7 +331,8 @@ Grounded in `lib/compliance.ts` and the existing footer in `app/layout.tsx`. Ite
 > - Submit only finds you personally observed in-store: an item you saw on the shelf, a price you
 >   saw at the register or on a tag, or a purchase you made yourself.
 > - Receipts and photos are your proof. Reports backed by a receipt or shelf-tag photo earn higher
->   confidence — and when other shoppers confirm your reports, your trust score grows too.
+>   confidence. Your trust score moves separately, based on how the community confirms or marks
+>   dead the reports you file.
 > - Never fabricate, exaggerate, or repost someone else's find as your own, and never submit data
 >   from scraped sites, other deal communities, or a retailer's internal systems.
 > - Respect store staff and store policies. Be courteous, and don't ask employees to check
