@@ -87,13 +87,25 @@ they stabilize and the trust layer isn't actually beating Discord speed (`founde
 
 ### 6. Weekly active users (WAU) and DAU/WAU ratio
 
-**Definition:** standard — distinct users with any session in the window. Track browse-only vs.
-contributor WAU as separate lines per metric 1's caveat.
+**Definition — real caveat:** the current schema (`prisma/schema.prisma`) has no `Session` model
+or pageview/analytics table, so "any session in the window" isn't actually computable today. Real
+DAU/WAU (any app open, including pure browsing) requires the event instrumentation named as a
+future-proofing decision in `README.md` ("Feature flags + event instrumentation from Phase 1") —
+treat that as a Phase 1 prerequisite, not something to build just for this metric.
 
-**Targets:** Day 30: 100 WAU in the launch metro (already the stated Phase 1 exit criterion in
-`README.md`). Day 90: 300–500 WAU, contingent on kill/double-down review at day 90 (see
+**Interim schema-computable proxy (an *activity* floor, not true WAU):** distinct `userId` with
+at least one of — a `Report.createdAt`, `ReportVote.createdAt`, `Alert.readAt` update, or
+`RoutePlan.createdAt` — falling inside the window. This undercounts real WAU (it misses
+browse-only sessions with no write action) but is honest about what's actually measurable without
+new instrumentation, and is directionally useful for a small launch-metro cohort. Track
+browse-only vs. contributor activity as separate lines per metric 1's caveat once real session
+tracking exists.
+
+**Targets:** Day 30: 100 WAU-equivalent (real DAU/WAU if instrumentation ships in time, otherwise
+the activity-proxy above) in the launch metro (already the stated Phase 1 exit criterion in
+`README.md`). Day 90: 300–500, contingent on kill/double-down review at day 90 (see
 `kill-criteria.md`, `double-down-criteria.md`) — this is a directional target, not a hard gate by
-itself, since WAU can look healthy while supply-side metrics (1–3) are the real tell.
+itself, since this number can look healthy while supply-side metrics (1–3) are the real tell.
 
 ### 7. Route-plan-to-completion rate
 
@@ -125,8 +137,11 @@ remember to check `/alerts`. Don't trust this metric pre-delivery-upgrade.
 
 ### 9. Free-to-paid conversion rate
 
-**Definition:** `count(users with active Pro or Reseller subscription) / count(users with ≥1
-session in the trailing 30 days)`.
+**Definition:** `count(users with active Pro or Reseller subscription) / count(users active in the
+trailing 30 days, using the metric-6 activity definition)`. Same caveat as metric 6: "active"
+means the schema-computable activity proxy (a Report/ReportVote/Alert-read/RoutePlan touch),
+not a true session count, unless real event instrumentation has shipped by the time this is
+measured.
 
 **Not measurable until:** billing ships (`founder-memo.md` §6, item 6) — explicitly sequenced
 *after* the cold-start problem in every plan in this pack. Don't build billing just to get this
