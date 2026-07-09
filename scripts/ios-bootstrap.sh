@@ -33,6 +33,12 @@ npm install \
   @capacitor/camera \
   @capacitor/geolocation
 
+if [ "$(uname)" != "Darwin" ]; then
+  echo "✅ JS dependencies installed. Stopping here — the remaining steps"
+  echo "    (cap add ios, Fastlane templates) require macOS + Xcode."
+  exit 0
+fi
+
 echo "==> [2/4] Adding the native iOS project (ios/App) from capacitor.config.ts"
 if [ -d "ios/App" ]; then
   echo "    ios/App already exists — skipping 'cap add ios'. Running sync instead."
