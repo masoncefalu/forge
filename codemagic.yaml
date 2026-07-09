@@ -45,6 +45,14 @@ workflows:
       # or migration setup anyway.
       - name: Install JS dependencies
         script: npm ci
+      - name: Guard — CAPACITOR_SERVER_URL is set
+        script: |
+          set -e
+          if [ -z "$CAPACITOR_SERVER_URL" ]; then
+            echo "Error: CAPACITOR_SERVER_URL must be set in the pennyforge_ios" \
+                 "environment group — see capacitor.config.ts." >&2
+            exit 1
+          fi
       - name: Sync Capacitor iOS project
         script: npx cap sync ios
       - name: Set up code signing (managed by Codemagic)

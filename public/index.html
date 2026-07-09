@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+  Placeholder only — never served or rendered. `webDir` (public/) must
+  contain an index.html or Capacitor's `cap sync` fails its web-asset
+  validation before a build exists. The iOS shell runs in server.url mode
+  (see capacitor.config.ts) and loads the hosted Next.js app instead; this
+  file is not part of that flow. It is also harmless to `next dev`/`next
+  build` — Next.js serves public/ assets at their literal path, so this
+  file is reachable only at /index.html, not the app's own "/" route.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PennyForge</title>
+  </head>
+  <body>
+    <p>PennyForge is unused in server.url mode — see capacitor.config.ts.</p>
+  </body>
+</html>
