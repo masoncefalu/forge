@@ -15,8 +15,10 @@
 const config = {
   appId: 'com.pennyforge.app',
   appName: 'PennyForge',
-  // `webDir` is required by the CLI even in server-url mode; `public/` is a
-  // valid, committed folder so `cap sync` doesn't error before a build exists.
+  // `webDir` is required by the CLI even in server-url mode, and `cap sync`
+  // validates that it contains real web assets (an `index.html`) — the
+  // committed `public/index.html` placeholder satisfies that check. It is
+  // never actually rendered: the shell loads `server.url` below instead.
   webDir: 'public',
   ios: {
     contentInset: 'always',

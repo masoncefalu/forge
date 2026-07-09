@@ -14,25 +14,29 @@ https://github.com/masoncefalu/forge/settings/secrets/actions
 
 ## Secret names
 
-### Apple / App Store Connect
+### Apple / App Store Connect (read by `.github/workflows/ios-release.yml`)
+
+These names match the workflow's `env:` block and the Fastlane templates in
+`tooling/ios/` exactly — the release run reads them verbatim.
 
 | Secret name | Value | Source |
 | --- | --- | --- |
-| `APPLE_TEAM_ID` | 10-char Team ID | developer.apple.com → Membership |
-| `IOS_BUNDLE_ID` | e.g. `com.pennyforge.app` | Certificates, Identifiers & Profiles → Identifiers |
 | `ASC_ISSUER_ID` | Issuer UUID | App Store Connect → Users and Access → Integrations → App Store Connect API |
 | `ASC_KEY_ID` | Key ID of the API key | Same page, next to the key |
-| `ASC_API_KEY_BASE64` | Base64 of the `.p8` API key file | Downloaded once at key creation (see encoding below) |
-| `ASC_APP_ID` | Numeric App Store Connect app ID | App record → App Information |
+| `ASC_KEY_P8` | Base64 of the `.p8` API key file | Downloaded once at key creation (see encoding below) |
+| `DEVELOPER_TEAM_ID` | 10-char Apple Developer team ID | developer.apple.com → Membership |
+| `FASTLANE_APPLE_ID` | Apple ID email (Apple-ID auth fallback only) | Your Apple Developer account |
+| `CAPACITOR_SERVER_URL` | Hosted URL the iOS shell points at, e.g. `https://pennyforge.vercel.app` | Your deployment |
 
-### iOS signing
+### iOS signing (only if using fastlane `match`)
+
+The Fastfile uses `match` when `MATCH_GIT_URL` is set, otherwise Xcode
+automatic signing — no raw `.p12`/`.mobileprovision` secrets are needed.
 
 | Secret name | Value | Source |
 | --- | --- | --- |
-| `IOS_DIST_CERT_BASE64` | Base64 of the Apple Distribution `.p12` | Exported from Keychain Access |
-| `IOS_DIST_CERT_PASSWORD` | Password chosen when exporting the `.p12` | Mason |
-| `IOS_PROVISIONING_PROFILE_BASE64` | Base64 of the App Store `.mobileprovision` | Certificates, Identifiers & Profiles → Profiles |
-| `IOS_KEYCHAIN_PASSWORD` | Any random string (e.g. `openssl rand -base64 24`) | Generated once; used to create a temp keychain on the macOS runner |
+| `MATCH_GIT_URL` | Private git repo URL holding match-managed certs/profiles | Created once (must be private) |
+| `MATCH_PASSWORD` | Passphrase encrypting the match repo contents | Generated once (e.g. `openssl rand -base64 24`) |
 
 ### Backend / auth / storage / push (added when each feature lands)
 
@@ -51,25 +55,16 @@ https://github.com/masoncefalu/forge/settings/secrets/actions
 Binary/PEM files can't be pasted into a secret directly — base64-encode them first (macOS/Linux):
 
 ```bash
-# App Store Connect API key
+# App Store Connect API key (paste as ASC_KEY_P8)
 base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy        # macOS (copies to clipboard)
 base64 -w0 AuthKey_XXXXXXXXXX.p8                 # Linux (prints one line)
 
-# Distribution certificate
-base64 -i Certificates.p12 | pbcopy
-
-# Provisioning profile
-base64 -i PennyForge_AppStore.mobileprovision | pbcopy
-
-# APNs / Sign in with Apple keys
+# APNs / Sign in with Apple keys (future features)
 base64 -i AuthKey_YYYYYYYYYY.p8 | pbcopy
 ```
 
-Paste the single-line output as the secret value. In workflows, decode with:
-
-```bash
-echo "$IOS_DIST_CERT_BASE64" | base64 --decode > cert.p12
-```
+Paste the single-line output as the secret value. The Fastfile decodes
+`ASC_KEY_P8` itself (`is_key_content_base64: true`).
 
 ## Notes
 
