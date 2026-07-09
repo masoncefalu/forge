@@ -4,6 +4,7 @@
 import { prisma } from "./db";
 import { haversineMiles } from "./geo";
 import { toLeadView } from "./leads";
+import { isExpired } from "./reports";
 import { rankStores, type RankedStore, type RouteStoreInput } from "./route";
 
 // Fallback origin if the user has no home coordinates (downtown Atlanta).
@@ -36,15 +37,18 @@ export async function getRankedStoresForUser(user: {
     storeId: s.id,
     storeName: `${s.name} (${s.city}, ${s.state})`,
     distanceMiles: +haversineMiles(origin.lat, origin.lng, s.lat, s.lng).toFixed(1),
-    leads: s.reports.map((r) => {
-      const view = toLeadView(r);
-      return {
+    leads: s.reports
+      .map((r) => toLeadView(r))
+      // Expired leads are derived, read-time-only (lib/reports.ts#isExpired)
+      // and excluded here the same way suppressed reports are already
+      // excluded by the status query above.
+      .filter((view) => !isExpired(view.breakdown.effectiveAgeDays, view.dealType))
+      .map((view) => ({
         // Estimated resale/retail value in dollars; falls back to paid price.
-        estValue: (r.product.msrpCents ?? r.priceCents) / 100,
+        estValue: (view.msrpCents ?? view.priceCents) / 100,
         confidence: view.score,
         suppressed: false, // suppressed reports are already filtered out above
-      };
-    }),
+      })),
   }));
 
   return rankStores(inputs);

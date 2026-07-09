@@ -39,6 +39,10 @@ ROI are the retention loops that outlast a single viral find.
 - Compliance guardrail blocking unsafe source types before any DB write.
 - Same-day duplicate report prevention (one report per product+store+user+day).
 - Confidence scoring with full breakdown shown on the lead detail page ("why this lead scores X").
+- Expiry: leads past 4 half-lives of effective age (PENNY: 28 days, CLEARANCE: 56 days) are
+  treated as `EXPIRED` and dropped from the feed and route planner. This is a derived, read-time
+  status computed from the existing decay math (`lib/reports.ts#isExpired`) — no background job,
+  and the DB row's `status` is never rewritten to `EXPIRED`.
 - Confirm/dead voting (one vote per user per report, changeable), with dead-vote suppression.
 - Mock alert fan-out, deduped per (product, store) per 24h window, with a read/unread inbox.
 - Route planner: expected value (est. value × confidence) minus round-trip gas cost, ranked, with
