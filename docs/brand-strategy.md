@@ -56,7 +56,7 @@ research signal, not legal clearance.
 
 | Name | Rationale | Collision risk | Tagline pairing |
 |---|---|---|---|
-| **ShelfProof** | Puts the core moat — evidence captured at the shelf — directly in the name | Low (no existing app/brand found) | "Deals with receipts, not rumors." |
+| **ShelfProof** | Puts the core moat — evidence captured at the shelf — directly in the name | Low–Medium (no live shipped app or funded company found; the string does surface as a speculative concept page on at least one AI app-idea-generator site, which carries no real trademark or market weight but means the collision check below isn't exhaustive) | "Deals with receipts, not rumors." |
 | **ShelfReport** | Journalistic framing matches the filed-report model exactly | Low–Medium (somewhat generic/descriptive) | "The local clearance wire, verified in-aisle." |
 | **MarkdownMap** | Uses the real retail term of art plus the Waze map promise | Medium (SEO collision with "Markdown" the text format) | "Every verified markdown, mapped." |
 | **MarkdownScout** | "Scout" reads as friendly first-hand reporting, not surveillance | Medium (same Markdown-format SEO shadow) | "Shoppers scouting real markdowns for each other." |
@@ -108,7 +108,7 @@ pronounceability — with the incumbent included, since the real decision is whe
 | Rank | Name | Why it ranks here |
 |---|---|---|
 | 1 | **PennyForge** (incumbent) | Strongest earned equity — already built into the schema, docs, and go-to-market copy, and matches the dominant "Penny + noun" naming convention in this niche. Kept at #1 *contingent on* a clean professional trademark clearance; the domain/handle situation is a real but solvable cost (see §10). |
-| 2 | **ShelfProof** | Cleanest available name that encodes the core differentiator (proof) with the lowest researched collision risk of any alternative. |
+| 2 | **ShelfProof** | Encodes the core differentiator (proof) with no live shipped competitor found; the only collision signal is a speculative concept page on an AI app-idea-generator site, which isn't a real product or trademark but does mean this needs a proper clearance search, not just a web search, before it's finalized. |
 | 3 | **DealRadius** | Cleanest local-first alternative; short, spells itself, low collision signal. |
 | 4 | **AisleScout** | Best encoding of the compliance story (first-hand, in-aisle, "scout" not "scrape") — held back only by a crowded "Aisle" naming neighborhood. |
 | 5 | **Trovato** | Most distinctive, ownable coined option — premium feel, moderate collision risk from an existing surname/small-business use. |
@@ -211,7 +211,8 @@ name in marketing).
 - **Primary CTA:** See finds near me · **Secondary CTA:** How verification works
 - **Bullets:**
   - A local feed of penny and clearance finds, filtered by state, store, and confidence
-  - Confirm/dead voting keeps every lead current — stale finds disappear automatically
+  - Confirm/dead voting keeps every lead current — once dead votes clearly outnumber confirms, a
+    lead is automatically suppressed from the feed
   - A route planner that ranks trips by expected value minus gas, and skips trips that lose money
 
 ### Variant B — "Trust and receipts" (proof-leaning)
@@ -252,9 +253,9 @@ name in marketing).
 > store, backed by a receipt, a shelf-tag photo, or an in-person observation.
 >
 > Each report earns a confidence score from 0 to 100 based on evidence strength, the reporter's
-> track record, community confirmations, and how recently the item was seen. When a find stops
-> panning out, shoppers mark it dead and it drops out of the feed — so you spend your time on
-> items that are still on the shelf.
+> track record, community confirmations, and how recently the item was seen. When enough shoppers
+> mark a find dead, it's automatically suppressed from the feed — so you spend your time on items
+> that are still on the shelf.
 >
 > **How it works**
 > - Browse a local feed of clearance and penny-priced finds, filtered by state, store, and
@@ -277,8 +278,10 @@ name in marketing).
 > - Not a guarantee. Prices are community-reported, vary by store, and change quickly. Availability
 >   is never promised.
 >
-> Clearance pricing is set by each store, and every find is purchased at the posted register price
-> like any other sale. Be kind to store employees — they're the reason this hobby works.
+> Clearance pricing is set by each store. Reports come from shoppers who saw an item on the shelf,
+> checked a tag, read public store signage, or bought it — always ordinary in-store shopping, and
+> always at the posted price when a purchase is involved. Be kind to store employees — they're the
+> reason this hobby works.
 >
 > See what your neighbors have already found.
 
@@ -328,7 +331,7 @@ Grounded in `lib/compliance.ts` and the existing footer in `app/layout.tsx`. Ite
 > - Submit only finds you personally observed in-store: an item you saw on the shelf, a price you
 >   saw at the register or on a tag, or a purchase you made yourself.
 > - Receipts and photos are your proof. Reports backed by a receipt or shelf-tag photo earn higher
->   confidence and build your trust score.
+>   confidence — and when other shoppers confirm your reports, your trust score grows too.
 > - Never fabricate, exaggerate, or repost someone else's find as your own, and never submit data
 >   from scraped sites, other deal communities, or a retailer's internal systems.
 > - Respect store staff and store policies. Be courteous, and don't ask employees to check
@@ -392,10 +395,12 @@ Sampled from live search results (July 2026) — see Appendix A for sources.
    visual decode guides funneling into "log your find in PennyForge."
 8. **Observed "glitch/hack" demand — capture with compliant reframing only.** Real, high-volume
    queries exist (*walmart glitch deals*, *clearance hacks*). Strategy: never use
-   glitch/hack/trick/secret-exploit language in titles, URLs, or copy. Capture the intent with
-   educational reframes that rank on semantic proximity instead — "How penny items actually work
-   (it's not a glitch)," "Why the app price differs from the shelf tag." Hard line: no content
-   implying price-error exploitation or "before the store fixes it" urgency.
+   glitch/hack/trick/secret-exploit language in titles, URLs, or copy — including in example
+   titles used internally, so the forbidden vocabulary doesn't leak into a published page by
+   accident. Capture the intent with educational reframes that rank on semantic proximity instead
+   — "How Penny Items Actually Work," "Why the App Price Differs From the Shelf Tag,"
+   "Understanding Unadvertised Markdowns." Hard line: no content implying price-error exploitation
+   or "before the store fixes it" urgency.
 
 ---
 
@@ -418,9 +423,11 @@ Reasoning:
   directly), the iOS/Android app-store listing names, and social handles across
   Instagram/TikTok/X, before a rebrand decision is even needed.
 - If clearance comes back blocked, or if a rebrand is chosen proactively to shed the
-  forge/forgery double meaning, **ShelfProof** and **DealRadius** are the vetted fallbacks — both
-  scored cleanly in this research, both encode a different half of the positioning (proof vs.
-  local/routing), and both are short enough to survive an app icon.
+  forge/forgery double meaning, **ShelfProof** and **DealRadius** are the leading fallback
+  candidates — both scored cleanly against live shipped products in this research, both encode a
+  different half of the positioning (proof vs. local/routing), and both are short enough to survive
+  an app icon. Neither has had a professional trademark search run against it yet, so treat "leading
+  candidate" as a starting point for clearance, not a final pick.
 - Whichever name ships, the brand voice, disclaimers, and SEO strategy in this document are name
   agnostic and should carry over unchanged — they were built from the compliance rules and shipped
   feature set, not from the name.
