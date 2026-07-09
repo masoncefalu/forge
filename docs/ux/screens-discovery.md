@@ -259,9 +259,16 @@ removes friction from the sub-30-second report flow (no more scrolling a flat al
 - Per store, most recent report/confirm timestamp for the freshness indicator — either a
   `groupBy`/`orderBy` query on `Report`/`ReportVote` per store, or (simpler at MVP data volume) one
   query for latest `Report.createdAt` per `storeId` plus one for latest `CONFIRMED`
-  `ReportVote.createdAt` joined through `Report.storeId`, taking the max of the two. This is
-  pure display logic and belongs in `lib/*.ts` (e.g. a new `lib/stores.ts` `getStoresWithFreshness`
-  function) per `CLAUDE.md`'s convention of keeping business logic out of route handlers/components.
+  `ReportVote.createdAt` joined through `Report.storeId`, taking the max of the two. **This query
+  must scope to visible reports only** — `status: { in: ["PENDING", "APPROVED"] }`, the same filter
+  `getFeedLeads` already applies (`lib/leads.ts`) — and, for the confirm-timestamp half, only
+  consider `CONFIRMED` votes on reports that still pass that same filter. Without that scope, a
+  `REJECTED` or community-`SUPPRESSED` report's `createdAt` (or a confirm vote on one) could make a
+  store read as freshly verified even though that exact lead is deliberately hidden from the feed,
+  search, and route planner — misleading a user into thinking a store is actively "hot" based on
+  data the trust system has already suppressed. This is pure display logic and belongs in
+  `lib/*.ts` (e.g. a new `lib/stores.ts` `getStoresWithFreshness` function) per `CLAUDE.md`'s
+  convention of keeping business logic out of route handlers/components.
 - `getCurrentUser()` for `homeZip`/`homeLat`/`homeLng` pre-fill.
 - `haversineMiles` from `lib/geo.ts` (already implemented — no new math needed).
 

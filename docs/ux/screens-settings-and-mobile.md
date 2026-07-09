@@ -107,9 +107,16 @@ App Store review — actually delete their account. It is the "your own" counter
   - **Proposed MVP behavior: anonymize in place, not row-delete.** `DELETE` on the existing
     `app/api/user/route.ts` (extends the file that already owns user-session mutation, rather than
     a new route) operates on the *current* `getCurrentUser()` id and, in a transaction:
-    1. Hard-deletes this user's own `ReportVote` rows (their votes are personal and lightweight;
-       removing them just adjusts confirm/dead counts on affected reports through the existing
-       vote-tally logic, no separate cleanup needed).
+    1. Hard-deletes this user's own `ReportVote` rows (their votes are personal and lightweight).
+       **This step must also revisit every `Report` those votes touched:** `confirms`/`deads` are
+       derived by counting rows, but `Report.status`/`previousStatus` are *stored* fields only
+       recomputed inside the vote route (`app/api/reports/[id]/vote/route.ts`). If a deleted vote
+       was the one holding a report at `SUPPRESSED` (`isSuppressed` in `lib/scoring.ts`), the
+       report must be re-evaluated and, if the remaining tally no longer satisfies
+       `isSuppressed`, restored to its `previousStatus` — otherwise a lead can stay hidden from
+       the feed/search/route planner after the vote that suppressed it is gone. The deletion
+       transaction should call the same suppression-check logic the vote route uses, once per
+       affected report, not just delete rows and stop.
     2. Hard-deletes this user's own `Alert` rows (their personal inbox; recipient-only, no other
        user depends on them).
     3. Hard-deletes this user's own `RoutePlan` rows (personal saved plans).
@@ -125,9 +132,15 @@ App Store review — actually delete their account. It is the "your own" counter
   - **One small schema addition this requires:** a nullable `User.deletedAt DateTime?` column, so
     (a) an anonymized user can be filtered out of `UserSwitcher`'s "Acting as" list (`app/layout.tsx`
     would add `where: { deletedAt: null }` to its `prisma.user.findMany`) and (b) the anonymization
-    is idempotent/detectable. This is the one place in this doc that asks for new schema — flagged
-    explicitly because the identity/stats section above deliberately does *not* invent schema.
-    It's an additive, nullable-column migration, consistent with the existing migration pattern in
+    is idempotent/detectable. **The same `deletedAt: null` filter must also be added inside
+    `getCurrentUser()`** (`lib/currentUser.ts`) — both on the cookie-lookup branch and on its
+    fallback query (`prisma.user.findFirst({ where: { role: "USER" }, orderBy: { createdAt: "asc"
+    } })`). Without that, deleting the account that happens to be the oldest seeded `USER` breaks
+    the flow: clearing the `pf_user_id` cookie makes `getCurrentUser()` fall back to "first seeded
+    USER by createdAt," which can immediately re-select the row that was just anonymized. This is
+    the one place in this doc that asks for new schema — flagged explicitly because the
+    identity/stats section above deliberately does *not* invent schema. It's an additive,
+    nullable-column migration, consistent with the existing migration pattern in
     `prisma/migrations/`.
   - Orchestration lives in a new `lib/account.ts#anonymizeAccount(userId)`, called by the route
     handler — consistent with `CLAUDE.md`'s convention of keeping business logic (even
@@ -171,10 +184,17 @@ App Store review — actually delete their account. It is the "your own" counter
 
 ### Error state
 
-- ZIP doesn't resolve against the centroid table: non-blocking — save `homeZip` as free text,
-  leave lat/lng untouched, inline note ("Couldn't pinpoint that ZIP yet — your ZIP is saved, but
-  distance-based features will use a default location until it's recognized"), same non-blocking
-  posture as the store-selector doc's ZIP-lookup failure handling.
+- ZIP doesn't resolve against the centroid table: non-blocking — save `homeZip` as free text.
+  **`homeLat`/`homeLng` must be explicitly cleared (set to `null`), not left as whatever they
+  were before this save.** A user who already had valid coordinates from a prior successful save,
+  then enters a new ZIP that fails to resolve, would otherwise keep silently using the *old*
+  coordinates for route/store distance while the UI displays the *new*, unresolved ZIP —
+  `getRankedStoresForUser` only falls back to `DEFAULT_ORIGIN` when coordinates are `null`, so
+  stale-but-non-null coordinates never trigger that fallback. Clearing them on an unresolved save
+  is what makes the documented "degrades gracefully to `DEFAULT_ORIGIN`" behavior actually true.
+  Inline note: "Couldn't pinpoint that ZIP yet — your ZIP is saved, but distance-based features
+  will use a default location until it's recognized"), same non-blocking posture as the
+  store-selector doc's ZIP-lookup failure handling.
 - Locale/notification-preference save fails: inline retry message near that control, rest of the
   page unaffected (mirrors `ModerationActions`'/`VoteButtons`' existing pattern of a local `error`
   state string next to the specific control that failed, not a page-level error).
@@ -336,28 +356,49 @@ offline-queue wrapper would slot in, one component at a time, without touching t
   These all mutate shared state under server-side invariants that can't be resolved locally — they
   must be represented as *pending*, never silently optimistic-and-forgotten.
 
-**Concrete future queue pattern for `POST /api/reports` — no API contract change required.** This
-is the case the brief calls out, and the current implementation already makes it safe: `Report`'s
-`reportDate` is computed server-side at write time from `now()` (`lib/reports.ts#toReportDate`),
-never sent by the client, and the composite unique `@@unique([productId, storeId, userId,
-reportDate])` means a request queued while offline and replayed later lands on whatever calendar
-day the *replay* happens, using the exact same idempotent-conflict path (`isUniqueViolation`,
-already surfaced client-side as a friendly 409) that handles same-day duplicates today. This is
-already flagged for the iOS path in `docs/mobile-readiness.md` section 5 ("the same-day reportDate
-unique constraint already makes replays idempotent per day") — the web client can rely on the same
-property. Concretely (Future, not MVP): `ReportForm`'s submit handler, on a failed/offline `fetch`
-to `/api/reports`, would write the identical request body to a local queue (IndexedDB, keyed by a
-client-generated idempotency token for UI tracking only — never sent to the server, since the
-server doesn't need it) instead of surfacing today's bare "Network error" message, and show "Saved
-— will submit when you're back online." A background sync (service worker `sync` event, or a
-simpler "flush queue on next app load if online" check) replays each queued body through the exact
-same `POST /api/reports` endpoint, unmodified.
+**Concrete future queue pattern for `POST /api/reports` — mostly safe without an API contract
+change, with one gap to design around.** `Report`'s `reportDate` is computed server-side at write
+time from `now()` (`lib/reports.ts#toReportDate`), never sent by the client, and the composite
+unique `@@unique([productId, storeId, userId, reportDate])` means a queued request that has *never*
+successfully reached the server is safe to retry indefinitely — every retry either lands cleanly or
+hits the same friendly 409 (`isUniqueViolation`) that already handles same-day duplicates today.
+This is the property already flagged for the iOS path in `docs/mobile-readiness.md` section 5.
+
+**The gap:** that property assumes the original request never actually succeeded. If a queued
+request *does* succeed server-side but the client never observes the response (timeout, connection
+drop mid-response, app killed before the response is processed) and the client's retry logic fires
+again after a UTC-day boundary has passed, the retry computes a *new* `reportDate` and no longer
+collides with the original write's unique key — creating a genuine duplicate report (and a
+duplicate alert fan-out), not a caught 409. A client-generated idempotency token kept purely local
+(as originally proposed) cannot prevent this, because the server never sees it. A real
+implementation needs one of: (a) a server-visible idempotency key accepted by `POST /api/reports`
+and checked against a short-lived dedupe table before insert, or (b) the client persisting and
+reusing the server's actual observed `reportDate` from a still-pending request rather than letting
+a fresh retry recompute one. This is a real, if narrow (multi-hour offline + a boundary-crossing
+retry), API-contract consideration for the *report* queue — the "no API change needed" framing
+below still holds for mark-read (no duplicate-creation risk) but should not be read as a blanket
+claim for reports.
+
+Concretely (Future, not MVP): `ReportForm`'s submit handler, on a failed/offline `fetch` to
+`/api/reports`, would write the identical request body to a local queue (IndexedDB) instead of
+surfacing today's bare "Network error" message, and show "Saved — will submit when you're back
+online." A background sync (service worker `sync` event, or a simpler "flush queue on next app
+load if online" check) replays each queued body — subject to the idempotency-key or
+observed-report-date fix above, not a same-day-unique-constraint-only assumption.
 
 **Same mechanism, two smaller cases:**
 
-- Votes (`POST /api/reports/{id}/vote`) are similarly idempotent per user
-  (`@@unique([reportId, userId])` — a replayed vote updates the existing row, not a duplicate), but
-  a queued vote can go stale if the report was suppressed while offline. Proposal: a synced vote
+- Votes (`POST /api/reports/{id}/vote`) are duplicate-safe per user (`@@unique([reportId,
+  userId])` means a replayed vote upserts the existing row rather than inserting a second one),
+  but the unique constraint only prevents *duplicate rows* — it does not make replay *order* safe.
+  Concretely: a user queues a `DEAD` vote offline, later changes their mind and votes `CONFIRMED`
+  while back online (updating the same row), and then the *original* queued `DEAD` body finally
+  replays (e.g. a slow background sync) — it would silently overwrite the newer `CONFIRMED` choice
+  and re-apply a trust/status delta computed from whatever the row looks like at replay time, not
+  from the state the vote was actually queued against. A real implementation cannot treat this as
+  simply idempotent; it needs a server-visible operation timestamp or version so a replay can
+  detect and discard a stale queued vote instead of blindly overwriting, or the vote-queue feature
+  should be deferred until that ordering mechanism exists. Once that's in place, a synced vote
   should surface the server's actual response (`confirms`/`deads`/`suppressed`) exactly as
   `VoteButtons` already renders it today, rather than assuming the optimistic state held.
 - Mark-read (`POST /api/alerts/{id}/read`) is the lowest-risk queue candidate — no invariant beyond

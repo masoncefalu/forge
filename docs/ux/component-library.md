@@ -351,9 +351,20 @@ constants (`lib/constants.ts`) types with minimal glue.
     `text-xs px-2 py-1` instead of `VoteButtons`' `text-sm px-4 py-2`) sized for sitting inline in
     `LeadCard`'s existing meta row (`flex flex-wrap items-center gap-3 text-xs text-stone-500`)
     without dominating the card.
-  - Must call `e.preventDefault()`/`e.stopPropagation()` on click since `LeadCard` itself is a
-    `<Link>` — `VoteButtons` never had to handle this because it only ever lives on the
-    non-link lead-detail page.
+  - `e.preventDefault()`/`e.stopPropagation()` alone are **not sufficient** here: `LeadCard`
+    currently wraps its *entire* contents in a single `<Link>`, and placing interactive `<button>`
+    elements inside that `<Link>` nests interactive content inside an anchor, which is invalid
+    HTML and can produce real accessibility/focus/keyboard-navigation and browser-inconsistent
+    click-target bugs — `stopPropagation` prevents the click from also triggering navigation, but
+    it doesn't fix the underlying nested-interactive-content structure. Adding
+    `OneTapVoteButtons` to the feed requires restructuring `LeadCard` first: either (a) narrow the
+    `<Link>` to wrap only the non-interactive parts of the card (product name, price, store line)
+    and place the vote buttons as siblings outside it, or (b) keep the whole card clickable via a
+    "stretched link" pattern (an absolutely-positioned `<Link>` overlay with the buttons given a
+    higher `z-index` and their own `stopPropagation` handler) — either is a real markup change to
+    `LeadCard`, not something `OneTapVoteButtons` can work around unilaterally by itself.
+    `VoteButtons` never had to handle this because it only ever lives on the non-link lead-detail
+    page.
   - Result feedback should NOT reuse `VoteButtons`' neutral-gray-for-everything message pattern
     (a known gap, see Part A) — the compact "no room for a status line" context makes a bad message
     even more likely to go unnoticed; toast-in-place (e.g. the tapped button briefly shows

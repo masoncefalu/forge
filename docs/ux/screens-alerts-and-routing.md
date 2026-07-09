@@ -153,17 +153,23 @@ infrastructure):
 - **Real push delivery (APNs/FCM) — explicitly deferred** per `docs/product-spec.md` ("Real push
   notifications / email / SMS... Swap point: `lib/alerts.ts` + a notification-delivery service
   behind the same `shouldCreateAlert` gate") and `CLAUDE.md` ("no real push notifications in the
-  MVP"). The key design point worth recording here: **this requires no schema rework**. The
-  fan-out step that already runs in `app/api/reports/route.ts` (`pickNearbyRecipients` →
-  `shouldCreateAlert` → `prisma.alert.create`) is exactly the point where a push send would be
-  added as a second side-effect alongside the existing DB write — same trigger, same dedupe gate,
-  same recipient list. `Alert.readAt` already models exactly the state a push notification needs
-  ("has the user seen/opened this") — a tapped push notification would just call the same `POST
-  /api/alerts/{id}/read` endpoint that `MarkReadButton` calls today, or set `readAt` directly. No
-  new "delivery status" table, no new dedupe logic, no new recipient-selection logic — only a
-  notification-sending service bolted onto a fan-out path that already exists and is already
-  tested (`ALERT_DEDUPE_WINDOW_MS`, `ALERT_RADIUS_MILES`, `pickNearbyRecipients` are pure functions
-  in `lib/alerts.ts`, unit-testable today independent of any transport).
+  MVP"). The key design point worth recording here: **the alert-eligibility model itself requires
+  no rework** — but push *delivery* is not schema-free, and the claim below should not be
+  overstated to "nothing to add." The fan-out step that already runs in `app/api/reports/route.ts`
+  (`pickNearbyRecipients` → `shouldCreateAlert` → `prisma.alert.create`) is exactly the point where
+  a push send would be added as a second side-effect alongside the existing DB write — same
+  trigger, same dedupe gate, same recipient *list*. `Alert.readAt` already models exactly the
+  state a push notification needs ("has the user seen/opened this") — a tapped push notification
+  would just call the same `POST /api/alerts/{id}/read` endpoint that `MarkReadButton` calls
+  today, or set `readAt` directly. **What genuinely is missing, and does need schema:** there is
+  currently no per-user/per-device push token or delivery opt-in target anywhere in the schema —
+  `pickNearbyRecipients` returns `User` rows, not addressable push endpoints. `docs/mobile-readiness.md`
+  already calls this out (storing device tokens on `User` as part of the iOS push plan). So the
+  accurate framing is: no new *dedupe/eligibility/recipient-selection* logic is needed (that part
+  really is reuse), but shipping push at all requires adding token/preference storage (e.g. a
+  `DeviceToken` table or fields on `User`) before a delivery adapter has anywhere to send to — the
+  fan-out logic and the token storage are two separate additions, and only the first is "already
+  built."
 - **Offline-future-ready framing, specifically:** because Alerts are already a pull-based,
   server-persisted list rather than an ephemeral in-memory toast, a user who is offline when an
   alert would have fired does not lose it — it is sitting in the `Alert` table waiting for their

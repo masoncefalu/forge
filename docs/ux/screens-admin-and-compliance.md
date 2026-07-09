@@ -237,10 +237,16 @@ enforcement — same principle the codebase already applies to `EVIDENCE_LABELS`
    auto-hide a lead from the feed, alerts, and route planner without anyone from PennyForge doing
    anything; human moderators (the small `ADMIN`/`CAPTAIN` team) are a backstop on top of that, not
    the primary mechanism — see the Admin UX notes section below, this is the same framing.
-5. **Privacy note** (adapted from `docs/compliance.md`): your home location is only ever used to
-   calculate distances for the route planner and alerts — it is never shown to other users; store
-   addresses are public business info, not personal data; PennyForge collects no personal data
-   beyond an email and a handle in the MVP.
+5. **Privacy note** (adapted from `docs/compliance.md`): the personal data PennyForge stores on
+   your account is your email, handle, and (if you set one) an approximate home location — that
+   home location (`User.homeZip`/`homeLat`/`homeLng`) is used only to calculate distances for the
+   route planner and alerts, is never shown to other users, and is not the same thing as a store's
+   address (store addresses are public business information, not personal data, and are shown to
+   everyone). This copy must not claim "no personal data beyond email and handle" — home location
+   is account-linked personal data too (and is correctly classified as Location data in the App
+   Store privacy checklist per `docs/app-store-checklist.md`); the compliance page has to disclose
+   it accurately rather than omit it, since under-disclosing on the one page whose entire purpose
+   is trustworthiness would undercut the page's own premise.
 6. **Contact/report-a-concern line**: a simple mailto or link for "think a report violates this
    policy, or a store asked us to look at something? Tell us" — no ticketing system needed at MVP,
    just an honest channel.
