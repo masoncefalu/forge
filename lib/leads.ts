@@ -3,6 +3,7 @@
 import { prisma } from "./db";
 import type { DealType, EvidenceType } from "./constants";
 import { ageInDays, scoreBreakdown, type ScoreBreakdown } from "./scoring";
+import { isExpired } from "./reports";
 
 export interface LeadView {
   id: string;
@@ -96,7 +97,11 @@ export function toLeadView(r: ReportWithRelations, now: Date = new Date()): Lead
   };
 }
 
-/** Feed: visible leads (PENDING + APPROVED), filterable, sorted by score. */
+/**
+ * Feed: visible leads (PENDING + APPROVED), filterable, sorted by score.
+ * Leads past 4 half-lives of effective age are excluded as expired — a
+ * derived, read-time check (lib/reports.ts#isExpired), not a stored status.
+ */
 export async function getFeedLeads(filter: {
   state?: string;
   storeId?: string;
@@ -116,6 +121,7 @@ export async function getFeedLeads(filter: {
   const reports = await fetchReports(where);
   return reports
     .map((r) => toLeadView(r))
+    .filter((l) => !isExpired(l.breakdown.effectiveAgeDays, l.dealType))
     .filter((l) => l.score >= (filter.minScore ?? 0))
     .sort((a, b) => b.score - a.score);
 }
