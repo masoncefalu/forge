@@ -24,8 +24,8 @@ workflows:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         # Numeric "Apple ID" of the App Store Connect app record (App Information
-        # → General → Apple ID). Fill in after creating the app record.
-        APP_STORE_APPLE_ID: "0000000000"
+        # → General → Apple ID). Fill in after creating the app record. REQUIRED.
+        APP_STORE_APPLE_ID: ""
       node: 20
       xcode: latest
       cocoapods: default
@@ -51,12 +51,14 @@ workflows:
           xcode-project use-profiles
       - name: Bump build number to latest TestFlight + 1
         script: |
-          if [ "$APP_STORE_APPLE_ID" = "0000000000" ]; then
-            echo "APP_STORE_APPLE_ID is still the placeholder — set the real" \
-                 "numeric Apple ID in the pennyforge_ios environment group." >&2
+          if [ -z "$APP_STORE_APPLE_ID" ]; then
+            echo "Error: APP_STORE_APPLE_ID is not set. Set it in the environment variables."
             exit 1
           fi
-          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") || {
+            echo "Error: Failed to fetch latest TestFlight build number. Check your API credentials."
+            exit 1
+          }
           cd ios/App && agvtool new-version -all $((LATEST + 1))
       - name: Build signed IPA
         script: |

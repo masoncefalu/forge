@@ -28,13 +28,21 @@ platform :ios do
     match(type: "appstore", readonly: !ENV["CI"].nil?, api_key: key) if ENV["MATCH_GIT_URL"]
 
     # Build number = latest TestFlight build + 1, so uploads never collide.
-    # initial_build_number is fastlane's own "no builds yet" fallback — it does
-    # not swallow real API/auth failures the way a bare `rescue` would.
-    latest = latest_testflight_build_number(
-      api_key: key,
-      app_identifier: APP_IDENTIFIER,
-      initial_build_number: 0,
-    )
+    # Only fall back to 0 if there are no builds yet; otherwise fail and diagnose.
+    latest = begin
+      latest_testflight_build_number(
+        api_key: key,
+        app_identifier: APP_IDENTIFIER,
+      )
+    rescue => e
+      # Re-raise if it's not a "no builds yet" error (e.g., auth failure, API outage).
+      # Check the error message to distinguish "no builds" from real API errors.
+      if e.message.include?("No builds found")
+        0
+      else
+        raise "Failed to fetch latest TestFlight build number: #{e.message}"
+      end
+    end
     increment_build_number(build_number: latest + 1, xcodeproj: XCODEPROJ)
 
     build_app(
@@ -59,11 +67,21 @@ platform :ios do
 
     match(type: "appstore", readonly: !ENV["CI"].nil?, api_key: key) if ENV["MATCH_GIT_URL"]
 
-    latest = latest_testflight_build_number(
-      api_key: key,
-      app_identifier: APP_IDENTIFIER,
-      initial_build_number: 0,
-    )
+    # Build number = latest TestFlight build + 1, so uploads never collide.
+    # Only fall back to 0 if there are no builds yet; otherwise fail and diagnose.
+    latest = begin
+      latest_testflight_build_number(
+        api_key: key,
+        app_identifier: APP_IDENTIFIER,
+      )
+    rescue => e
+      # Re-raise if it's not a "no builds yet" error (e.g., auth failure, API outage).
+      if e.message.include?("No builds found")
+        0
+      else
+        raise "Failed to fetch latest TestFlight build number: #{e.message}"
+      end
+    end
     increment_build_number(build_number: latest + 1, xcodeproj: XCODEPROJ)
 
     build_app(
