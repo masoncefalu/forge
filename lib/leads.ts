@@ -3,6 +3,7 @@
 import { prisma } from "./db";
 import type { DealType, EvidenceType } from "./constants";
 import { ageInDays, scoreBreakdown, type ScoreBreakdown } from "./scoring";
+import { isExpired } from "./reports";
 
 export interface LeadView {
   id: string;
@@ -30,6 +31,7 @@ export interface LeadView {
   createdAt: Date;
   score: number;
   breakdown: ScoreBreakdown;
+  expired: boolean;
 }
 
 type ReportWithRelations = Awaited<ReturnType<typeof fetchReports>>[number];
@@ -66,6 +68,7 @@ export function toLeadView(r: ReportWithRelations, now: Date = new Date()): Lead
     dealType: r.dealType as DealType,
     lastConfirmAgeDays,
   });
+  const expired = isExpired(breakdown.effectiveAgeDays, r.dealType as DealType);
 
   return {
     id: r.id,
@@ -93,10 +96,15 @@ export function toLeadView(r: ReportWithRelations, now: Date = new Date()): Lead
     createdAt: r.createdAt,
     score: breakdown.final,
     breakdown,
+    expired,
   };
 }
 
-/** Feed: visible leads (PENDING + APPROVED), filterable, sorted by score. */
+/**
+ * Feed: visible leads (PENDING + APPROVED), filterable, sorted by score.
+ * Leads past 4 half-lives of effective age are excluded as expired — a
+ * derived, read-time check (lib/reports.ts#isExpired), not a stored status.
+ */
 export async function getFeedLeads(filter: {
   state?: string;
   storeId?: string;
@@ -116,7 +124,7 @@ export async function getFeedLeads(filter: {
   const reports = await fetchReports(where);
   return reports
     .map((r) => toLeadView(r))
-    .filter((l) => l.score >= (filter.minScore ?? 0))
+    .filter((l) => !l.expired && l.score >= (filter.minScore ?? 0))
     .sort((a, b) => b.score - a.score);
 }
 

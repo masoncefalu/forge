@@ -36,15 +36,18 @@ export async function getRankedStoresForUser(user: {
     storeId: s.id,
     storeName: `${s.name} (${s.city}, ${s.state})`,
     distanceMiles: +haversineMiles(origin.lat, origin.lng, s.lat, s.lng).toFixed(1),
-    leads: s.reports.map((r) => {
-      const view = toLeadView(r);
-      return {
+    leads: s.reports
+      .map((r) => toLeadView(r))
+      // Expiry (LeadView#expired, derived read-time-only) is excluded here
+      // the same way suppressed reports are already excluded by the status
+      // query above.
+      .filter((view) => !view.expired)
+      .map((view) => ({
         // Estimated resale/retail value in dollars; falls back to paid price.
-        estValue: (r.product.msrpCents ?? r.priceCents) / 100,
+        estValue: (view.msrpCents ?? view.priceCents) / 100,
         confidence: view.score,
         suppressed: false, // suppressed reports are already filtered out above
-      };
-    }),
+      })),
   }));
 
   return rankStores(inputs);

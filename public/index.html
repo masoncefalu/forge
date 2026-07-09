@@ -1,19 +1,17 @@
 <!doctype html>
 <!--
-  Placeholder only — never served or rendered. `webDir` (public/) must
-  contain an index.html or Capacitor's `cap sync` fails its web-asset
-  validation before a build exists. The iOS shell runs in server.url mode
-  (see capacitor.config.ts) and loads the hosted Next.js app instead; this
-  file is not part of that flow. It is also harmless to `next dev`/`next
-  build` — Next.js serves public/ assets at their literal path, so this
-  file is reachable only at /index.html, not the app's own "/" route.
+  Placeholder only. PennyForge is server-rendered (Next.js App Router); this
+  directory is not served by `npm run dev`/`next build`. It exists solely so
+  Capacitor's `webDir: 'public'` (capacitor.config.ts) points at a real,
+  committed directory with an index.html — required for `cap add ios` /
+  `cap sync ios` to succeed, even though the native shell actually loads the
+  hosted app via `server.url` (see capacitor.config.ts) and never reads this
+  file. See docs/ios-roadmap.md.
 -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>PennyForge</title>
   </head>
-  <body>
-    <p>PennyForge is unused in server.url mode — see capacitor.config.ts.</p>
-  </body>
+  <body></body>
 </html>
