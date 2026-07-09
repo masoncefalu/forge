@@ -131,11 +131,12 @@ echo "   Run the test suite with:   npm test"
 
 Note this script always passes `--name init` to `prisma migrate dev`, even though the repo's
 actual migration history has two migrations (`20260708200333_init` and
-`20260708201618_add_report_previous_status`). On a from-scratch run against an empty
-`prisma/migrations/` directory, Prisma applies whatever migration files already exist in the repo
-and only prompts for a new one if the schema has pending changes — so this line is safe to rerun
-as-is for a fresh clone; it does not attempt to recreate history that's already committed. This was
-confirmed directly in this repo: running the sequence below against a clean checkout (no
+`20260708201618_add_report_previous_status`), both already committed under `prisma/migrations/`.
+On a from-scratch run against a fresh checkout — migration files present, but no `prisma/dev.db`
+yet — Prisma applies whatever migration files already exist in the repo and only prompts for a new
+one if the schema has pending changes beyond what's already migrated — so this line is safe to
+rerun as-is for a fresh clone; it does not attempt to recreate history that's already committed.
+This was confirmed directly in this repo: running the sequence below against a clean checkout (no
 `prisma/dev.db`, no `.env`) applied both existing migrations, regenerated the client, and seeded
 successfully with no manual intervention.
 
@@ -884,10 +885,11 @@ recorded CI result.
 ### Acceptance tests and manual QA
 
 `docs/testing.md` is the source of truth for everything beyond the unit suite — do not duplicate it
-here, only summarize: it lists 16 numbered **acceptance tests** (setup completes clean, all 7 pages
-render seeded data, search/filter correctness, duplicate-report 409, blocked-source 422, dead-vote
-suppression flipping a report to `SUPPRESSED`, alert dedupe, moderation gating, route-planner
-ranking/exclusion, self-vote 403, and "unit suite all green") plus a **5-minute manual QA script**
+here, only summarize: it lists 16 numbered **acceptance tests** (setup completes clean; `/`,
+`/search`, `/leaderboard`, `/alerts`, and `/admin` each render seeded data instead of an empty
+state; search/filter correctness; duplicate-report 409; blocked-source 422; dead-vote suppression
+flipping a report to `SUPPRESSED`; alert dedupe; moderation gating; route-planner
+ranking/exclusion; self-vote 403; and "unit suite all green") plus a **5-minute manual QA script**
 (11 steps: run setup → dev, browse the feed, read a score breakdown, vote as `casey_hunts`, submit
 as `lena_finds` with a low-evidence report, trigger the duplicate-report error, trigger a blocked-
 source compliance error, check `/alerts`, check `/route`, moderate as `forge_admin`, check
