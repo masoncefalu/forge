@@ -1,9 +1,10 @@
 # PennyForge — Open-Source Building Blocks (OSS Scout)
 
 Survey of open-source projects usable as building blocks (or explicit anti-patterns) for a
-compliant penny/hidden-clearance MVP. Thirty projects across eight categories were evaluated at
-metadata/README level on **2026-07-09** — no GitHub API sweeps, no code search, no bulk repo
-crawling. Stars and dates were confirmed from public repo pages where cheap to do so; entries
+compliant penny/hidden-clearance MVP. Thirty projects received full metadata/README-level
+evaluations on **2026-07-09**, grouped into four research clusters covering the nine requested
+categories, plus a handful of adjacent one-line mentions (GraphHopper, openrouteservice, Lucia,
+Tremor) — no GitHub API sweeps, no code search, no bulk repo crawling. Stars and dates were confirmed from public repo pages where cheap to do so; entries
 marked *approx.* should be re-verified before being cited externally.
 
 Scope note: this doc covers **feature-level libraries and services** (scanning, OCR, geo/routing,
@@ -12,7 +13,8 @@ covered by `docs/tooling-options.md` and its companions — not repeated here.
 
 > **Compliance lens (from `CLAUDE.md`):** no scraping, no private/undocumented retailer APIs, no
 > competitor feed ingestion, no reverse engineering of retailer systems, no automated checkout,
-> allowlist-based sourcing. Every verdict below was made against those six boundaries. The
+> allowlist-not-denylist sourcing, and all product data from first-hand, in-store, user-generated
+> reports. Every verdict below was made against those seven boundaries. The
 > monitoring/deal-bot category is where most of the ecosystem lives on the wrong side of them —
 > that's expected, and it's why several entries exist here only as documented negative examples.
 
@@ -30,11 +32,11 @@ Ranked by (a) compliance safety, (b) fit with the existing stack (Next.js 15 App
 | 2 | [Turf.js scoped modules](https://github.com/Turfjs/turf) (`@turf/distance`, `@turf/nearest-point`) | MIT | Use directly | Now (optional) | Pure, framework-free geo math that slots into `lib/route.ts` without adding services; tree-shakeable; grows with Phase 3 (bbox, clustering, isochrone rendering). |
 | 3 | [web-push](https://github.com/web-push-libs/web-push) | MPL-2.0 | Use directly | Phase 2 | Standards-based Web Push/VAPID from plain route handlers — real push with **no Redis, no workers, no Firebase**. Needs only a `PushSubscription` Prisma table + a service worker. |
 | 4 | [barcode-detector](https://github.com/Sec-ant/barcode-detector) (Sec-ant, zxing-wasm) | MIT | Use directly | Phase 2 | W3C `BarcodeDetector`-shaped ponyfill: native detector on Chrome/Android, ZXing-C++ WASM elsewhere. Standard API shape makes the later swap to native ML Kit in the Capacitor shell nearly free. |
-| 5 | [Auth.js / NextAuth v5](https://github.com/nextauthjs/next-auth) | ISC | Use directly | Phase 1 | `auth()` + Prisma adapter drops behind the existing `getCurrentUser()` seam in `lib/currentUser.ts` — the intended one-file swap. (Lucia is deprecated; see avoid list.) |
+| 5 | [Auth.js / NextAuth v5](https://github.com/nextauthjs/next-auth) | ISC | Use directly | Phase 1 | `auth()` + Prisma adapter slots behind the existing `getCurrentUser()` seam in `lib/currentUser.ts` — but only the call-site swap is one file: budget for the adapter's Prisma schema additions (`Account`, `Session`, `VerificationToken`, extra `User` fields) plus a migration and the `/api/auth` route/config. (Lucia is deprecated; see avoid list.) |
 | 6 | [Tesseract.js](https://github.com/naptha/tesseract.js) (~38k★, v7) | Apache-2.0 | Use directly | Phase 3 | Client-side/Node receipt OCR with word-level confidence scores that feed the scoring layer. Treat output as assistive prefill the user confirms, never auto-ingested fact. |
-| 7 | [Open Food Facts](https://world.openfoodfacts.org) API | ODbL (data) | Use directly, segregated | Phase 2 | The one legitimately **open** UPC→product-metadata source; crowd-sourced like PennyForge itself, so it fits the allowlist model (add as a new allowed source type in `lib/compliance.ts`). ODbL share-alike ⇒ keep OFF-sourced fields in a separate cache table (or fetch-at-display) with attribution so the core deal DB stays out of ODbL. Coverage skews food. |
+| 7 | [Open Food Facts](https://world.openfoodfacts.org) API | ODbL (data) | Use directly, segregated | Phase 2 | The one legitimately **open** UPC→product-metadata source; crowd-sourced like PennyForge itself. Scope strictly as **catalog-metadata prefill** (name/brand/image after a scan) — never a report-evidence `sourceType`: the `ALLOWED_SOURCE_TYPES` allowlist in `lib/compliance.ts` is first-hand, in-store evidence only and must stay that way. If adopted, document OFF as a separate metadata-source path. ODbL share-alike ⇒ keep OFF-sourced fields in a separate cache table (or fetch-at-display) with attribution so the core deal DB stays out of ODbL. Coverage skews food. |
 | 8 | [Quagga2](https://github.com/ericblade/quagga2) | MIT | Use directly (fallback) | Phase 2 | Maintained fork of QuaggaJS; strong 1D localization on crumpled shelf tags. Fallback if `barcode-detector` accuracy disappoints on retail 1D codes. No QR support. |
-| 9 | [Leaflet](https://github.com/Leaflet/Leaflet) + [react-leaflet](https://github.com/PaulLeCam/react-leaflet) | BSD-2 / Hippocratic-2.1 | Use directly | First map iteration | Simplest store-pin map; client component via `next/dynamic` (`ssr: false`). Flag: react-leaflet's Hippocratic license is source-available, not OSI-approved — low practical risk, but record it in any license audit. Tile source must not be `tile.openstreetmap.org` in production. |
+| 9 | [Leaflet](https://github.com/Leaflet/Leaflet) (+ optional [react-leaflet](https://github.com/PaulLeCam/react-leaflet)) | BSD-2 / Hippocratic-2.1 | Leaflet: use directly. react-leaflet: license sign-off first | First map iteration | Simplest store-pin map; client component via `next/dynamic` (`ssr: false`). Leaflet itself (BSD-2) is clean, and a thin hand-rolled wrapper suffices for one map. react-leaflet's Hippocratic-2.1 license is source-available, **not OSI-approved** — given the App Store/commercial path, do not adopt it without an explicit license decision; MapLibre + react-map-gl (MIT) is the license-clean React-binding alternative. Tile source must not be `tile.openstreetmap.org` in production. |
 | 10 | [ntfy](https://github.com/binwiederhier/ntfy) (~32k★) | Apache-2.0/GPLv2 | Use directly (ops only) | Now | One-line synchronous HTTP publish from a route handler — zero-infra **internal/admin** alert channel (moderation spikes, seed health). Not the consumer push path. |
 | 11 | [OSRM](https://github.com/Project-OSRM/osrm-backend) + [VROOM](https://github.com/VROOM-Project/vroom) | BSD-2 / BSD-2 | Use directly | Phase 3 | The self-hosted routing stack: OSRM `/table` for drive-time matrices, VROOM for real TSP/VRP "optimal penny run" (time windows, priorities ← confidence scores). Docker-deployed from public OSM extracts; **never** the public demo servers. |
 | 12 | [Valhalla](https://github.com/valhalla/valhalla) | MIT | Strong alternative | Phase 3 | Swap for OSRM if isochrones ("stores within a 20-min drive" feed filter) or runtime-tunable costing make the roadmap. Pick one engine, not both. |
@@ -78,8 +80,8 @@ Ranked by (a) compliance safety, (b) fit with the existing stack (Next.js 15 App
 |---------|-----------|-------------------|
 | [FairGame](https://github.com/Hari-Nagarajan/fairgame) | Amazon purchase bot: monitors listings and **auto-completes checkout**. Dead since 2021; its own README warns of account bans. | #5 (automated checkout), #1, #4. The canonical negative example. |
 | [streetmerchant](https://github.com/jef/streetmerchant) | 24/7 retailer stock scraper with auto-add-to-cart "checkout assistance". TypeScript, which makes it tempting — resist. | #1 (continuous scraping), skirts #5; per-store selectors are #4 in practice. "Won't auto-buy" disclaimer doesn't rescue it. |
-| [Discount-Bandit](https://github.com/Cybrarist/Discount-Bandit) | Self-hosted tracker that scrapes Amazon/Walmart/Target/eBay et al. directly. | #1, #6. Scraping Target/Walmart is precisely the gray-data behavior PennyForge positions against. Watch-list UX (one product × N stores, absolute vs %-off thresholds) may be glanced at conceptually. |
-| [PriceBuddy](https://github.com/jez500/pricebuddy) | Paste-a-URL price scraper with LLM-assisted extraction. | #1, #6. Key doc-worthy lesson: **"AI extraction" does not launder a prohibited source.** Its price-history-baseline *concept* translates safely to "how anomalous is this reported price vs. prior user reports" in `lib/scoring.ts`. |
+| [Discount-Bandit](https://github.com/Cybrarist/Discount-Bandit) | Self-hosted tracker that scrapes Amazon/Walmart/Target/eBay et al. directly. | #1, #7. Scraping Target/Walmart is precisely the gray-data behavior PennyForge positions against. Watch-list UX (one product × N stores, absolute vs %-off thresholds) may be glanced at conceptually. |
+| [PriceBuddy](https://github.com/jez500/pricebuddy) | Paste-a-URL price scraper with LLM-assisted extraction. | #1, #7. Key doc-worthy lesson: **"AI extraction" does not launder a prohibited source.** Its price-history-baseline *concept* translates safely to "how anomalous is this reported price vs. prior user reports" in `lib/scoring.ts`. |
 
 ### Maintenance / architectural mismatches
 
@@ -118,12 +120,12 @@ logic change, no dependency.
 
 | Phase | Dependency | Purpose |
 |-------|-----------|---------|
-| 1 | `next-auth@5` + `@auth/prisma-adapter` | Real auth behind the `getCurrentUser()` seam |
+| 1 | `next-auth@5` + `@auth/prisma-adapter` | Real auth behind the `getCurrentUser()` seam — call-site swap is one file, but also requires the adapter's schema tables (`Account`, `Session`, `VerificationToken`, `User` fields) + migration and `/api/auth` config |
 | 2 | `barcode-detector` | Camera UPC scan (native `BarcodeDetector` + WASM fallback) |
 | 2 | `quagga2` | Fallback 1D scanner if needed |
 | 2 | `web-push` | Real push from route handlers; add `PushSubscription` Prisma table + service worker |
-| 2 | Open Food Facts REST API (plain `fetch`) | UPC→name/brand/image prefill in the report form; add as allowlisted source type in `lib/compliance.ts`; segregate + attribute (ODbL) |
-| 2–3 | `leaflet` + `react-leaflet` | Store-pin map (client-only via `next/dynamic`) |
+| 2 | Open Food Facts REST API (plain `fetch`) | UPC→name/brand/image prefill in the report form — catalog metadata only, kept outside the report-evidence allowlist in `lib/compliance.ts`; segregate + attribute (ODbL) |
+| 2–3 | `leaflet` (add `react-leaflet` only after a license decision on Hippocratic-2.1) | Store-pin map (client-only via `next/dynamic`) |
 | 3 | `tesseract.js` | Receipt OCR as assistive prefill; confidences feed scoring |
 | 3 | OSRM (or Valhalla) + VROOM (Docker services) | Drive-time matrices + ROI-optimized multi-stop penny runs |
 | 3 | `maplibre-gl` | Vector-tile map upgrade for route polylines |
@@ -135,20 +137,25 @@ logic change, no dependency.
 ## 5. OSS Packet (compressed hand-off)
 
 ```
-PENNYFORGE OSS PACKET v1 (2026-07-09) — 30 repos evaluated, metadata-level, rate-limit-safe
+PENNYFORGE OSS PACKET v1 (2026-07-09) — 30 full evaluations (+ one-line adjacents),
+  metadata-level, rate-limit-safe
 STACK: Next15/React19/TS/Tailwind3/Prisma6(SQLite→PG)/Vitest; no Redis/workers; Capacitor staged
-COMPLIANCE: 6 hard boundaries (CLAUDE.md); allowlist sourcing; first-hand UGC only
+COMPLIANCE: 7 hard boundaries (CLAUDE.md); allowlist sourcing; first-hand UGC only
 
 ADOPT-NOW (0 required; optional): shadcn/ui[vendored,MIT,pin-TW3] · @turf/distance[MIT]
   · ntfy[ops-alerts-only] · @t3-oss/env-nextjs[env-validation]
-PHASE1: next-auth@5+prisma-adapter[ISC] behind getCurrentUser() seam. Lucia=deprecated,NO.
+PHASE1: next-auth@5+prisma-adapter[ISC] behind getCurrentUser() seam (call-site=1 file, but
+  needs Account/Session/VerificationToken schema tables + migration + /api/auth config).
+  Lucia=deprecated,NO.
 PHASE2: barcode-detector[Sec-ant,MIT,W3C-shape→free ML Kit swap later] · quagga2[fallback-1D]
   · web-push[MPL2,VAPID,sync from route handlers,+PushSubscription table,no workers]
-  · OpenFoodFacts API[ODbL: segregate cache table + attribute, else share-alike contaminates
-    core DB; allowlist in lib/compliance.ts; food-skewed coverage]
+  · OpenFoodFacts API[catalog-metadata prefill ONLY, never a report sourceType — the
+    lib/compliance.ts evidence allowlist stays first-hand; ODbL: segregate cache table +
+    attribute, else share-alike contaminates core DB; food-skewed coverage]
 PHASE3: tesseract.js[v7,Apache2,assistive-prefill-only] · OSRM|Valhalla + VROOM[Docker,
   OSM extracts, NEVER public demo servers, ODbL attribution] · maplibre-gl
-  · leaflet+react-leaflet earlier if map wanted [react-leaflet=Hippocratic-2.1, flag in audit]
+  · leaflet[BSD-2] earlier if map wanted; react-leaflet=Hippocratic-2.1(non-OSI)→license
+    sign-off first, or maplibre+react-map-gl[MIT] as license-clean binding
 CAPACITOR: @capacitor-mlkit/barcode-scanning + @capacitor/push-notifications (not Web Push in shell)
 STEAL-IDEAS-ONLY: changedetection.io→transition-gated alert dedupe (identity key + last-notified
   fingerprint, fire on change, re-arm) for lib/alerts.ts · Huginn→digest rollups + bounded dedupe
