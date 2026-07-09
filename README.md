@@ -234,7 +234,17 @@ score = w1·log(1 + independent_reports)
 
 Users see **badges, never raw numbers**: the Verification Seal. Store-level resolution when report volume allows; state-level otherwise. "Last confirmed X hours ago" always visible.
 
-**Route ROI** ranks candidate trips: `Σ(confidence × estimated_value) ÷ (distance_cost + time_cost)`, with store freshness as a multiplier so stale stores fall out of routes automatically.
+**Store-level freshness score** (`storeFreshnessScore` in `lib/scoring.ts`) is a separate 0–100 display metric, not a route-ranking input: `round(100 × max over the store's active leads of decay_factor)`, where each lead's `decay_factor = 0.5^(effectiveAgeDays / halfLife)`; 0 if the store has no active leads. It's a "how alive is this store right now" indicator on the feed — it does not feed into route scoring below.
+
+**Route ROI** ranks candidate stores by expected payout net of gas cost:
+
+```
+expectedValue = Σ estValue × (confidence / 100)   // over that store's non-suppressed leads
+tripCost      = distanceMiles × 2 × costPerMile   // round trip; costPerMile defaults to $0.15/mi
+routeScore    = expectedValue − tripCost
+```
+
+Stores are ranked by `routeScore` descending; any store where `routeScore <= 0` (the trip costs more than the expected haul) is excluded from the route. There's no time-cost term and no freshness multiplier — each lead's confidence already prices in decay, so stale leads simply contribute less to `expectedValue`.
 
 ## Monetization & In-App Purchases
 
