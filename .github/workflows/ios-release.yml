@@ -1,84 +1,94 @@
-# iOS release readiness workflow.
+# PennyForge — iOS release via GitHub Actions + Fastlane (STAGED).
 #
-# Today the repo has no Capacitor/Xcode project yet (see docs/ios-deployment.md), so this
-# workflow runs in "readiness check" mode: it verifies the web app builds on macOS and reports
-# which Apple/App Store Connect secrets are configured vs still missing
-# (see docs/github-secrets.md for the exact names and how to obtain each value).
+# SAFETY: this workflow is manual-only (workflow_dispatch) and tag-only
+# (ios-v* tags, none of which exist yet). It NEVER runs on normal pushes or PRs,
+# so it costs zero macOS minutes and cannot break the required `build-and-test`
+# check. The first step also no-ops gracefully if the Capacitor iOS project has
+# not been created yet (run `npm run ios:bootstrap` locally first).
 #
-# Once the ios/ Capacitor project lands, extend the release job below with the archive +
-# export + upload steps outlined in docs/ios-deployment.md Phase 4.
+# Activation checklist lives in docs/mobile-automation-stack.md. You must add the
+# secrets referenced under `env:` (Settings → Secrets and variables → Actions)
+# before a dispatched run can succeed.
 
-name: iOS Release Readiness
+name: iOS Release
 
 on:
   workflow_dispatch:
+    inputs:
+      lane:
+        description: "Fastlane lane to run"
+        required: true
+        default: "beta"
+        type: choice
+        options:
+          - beta      # build + upload to TestFlight
+          - release   # build + upload to App Store review
+  push:
+    tags:
+      - "ios-v*"
 
+# Least privilege: this workflow only reads the repo; releasing happens via the
+# App Store Connect API key, not the GITHUB_TOKEN.
 permissions:
   contents: read
 
-jobs:
-  secrets-check:
-    name: Check required Apple secrets
-    runs-on: ubuntu-latest
-    steps:
-      - name: Report configured vs missing secrets
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
-          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
-          IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
-          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
-        run: |
-          missing=0
-          for name in APPLE_TEAM_ID IOS_BUNDLE_ID ASC_ISSUER_ID ASC_KEY_ID ASC_API_KEY_BASE64 \
-                      ASC_APP_ID IOS_DIST_CERT_BASE64 IOS_DIST_CERT_PASSWORD \
-                      IOS_PROVISIONING_PROFILE_BASE64 IOS_KEYCHAIN_PASSWORD; do
-            if [ -z "${!name}" ]; then
-              echo "::warning::Missing secret: $name (see docs/github-secrets.md)"
-              missing=$((missing + 1))
-            else
-              echo "OK: $name is set"
-            fi
-          done
-          if [ "$missing" -gt 0 ]; then
-            echo "$missing secret(s) still need to be added at:"
-            echo "https://github.com/${GITHUB_REPOSITORY}/settings/secrets/actions"
-          else
-            echo "All iOS release secrets are configured."
-          fi
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: false
 
-  macos-build:
-    name: Verify web build on macOS runner
-    runs-on: macos-latest
+jobs:
+  build-and-upload:
+    # macOS runners are billed at a higher multiplier than Linux — this job only
+    # ever runs when manually dispatched or an ios-v* tag is pushed.
+    runs-on: macos-15
     env:
-      DATABASE_URL: "file:./dev.db"
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      DEVELOPER_TEAM_ID: ${{ secrets.DEVELOPER_TEAM_ID }}
+      FASTLANE_APPLE_ID: ${{ secrets.FASTLANE_APPLE_ID }}
+      MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      CAPACITOR_SERVER_URL: ${{ secrets.CAPACITOR_SERVER_URL }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Guard — is the iOS project bootstrapped?
+        id: guard
+        run: |
+          if [ ! -d "ios/App" ]; then
+            echo "::warning::ios/App not found. Run 'npm run ios:bootstrap' and commit ios/ first."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.guard.outputs.ready == 'true'
         with:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      - name: Install JS dependencies
+        if: steps.guard.outputs.ready == 'true'
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npm run db:generate
+      - name: Build Next.js assets
+        if: steps.guard.outputs.ready == 'true'
+        run: npm run build
 
-      - name: Apply migrations
-        run: npm run db:migrate
+      - name: Sync Capacitor iOS project
+        if: steps.guard.outputs.ready == 'true'
+        run: npx cap sync ios
 
-      - name: Verify (lint + typecheck + test + build)
-        run: npm run verify
+      - name: Install CocoaPods dependencies
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: ios/App
+        run: pod install
 
-      # Placeholder for the future Capacitor/Xcode pipeline (docs/ios-deployment.md Phase 4):
-      # - npx cap sync ios
-      # - decode IOS_DIST_CERT_BASE64 / IOS_PROVISIONING_PROFILE_BASE64 into a temp keychain
-      # - xcodebuild archive && xcodebuild -exportArchive
-      # - upload to App Store Connect with the ASC API key
+      - name: Run Fastlane (${{ github.event.inputs.lane || 'beta' }})
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: ios/App
+        run: |
+          bundle install
+          bundle exec fastlane ${{ github.event.inputs.lane || 'beta' }}
