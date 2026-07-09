@@ -1315,7 +1315,7 @@ Sources: [Visualping pricing](https://visualping.io/pricing) · [Visualping home
 |---|---|---|---|
 | Receipt/photo-verified proof tied to a confidence score | Hidden Clearances asserts team verification but shows no evidence | BrickSeek, Endless, RebelSavings, Deal Finder tools, Penny app, PennyCentral, Facebook groups | Evidence-weighted reports (receipt, shelf tag, product photo, or text-only, per `lib/constants.ts`) with a visible confidence score per item — receipt evidence scores higher, but isn't required |
 | Store-level (not state/city) trust that self-heals over time | PennyCentral (state/city + confirmation counts) | Everyone else — either no decay (Facebook, Freebie Guy weekly lists) or no verification to decay in the first place | Confirm/dead voting + time decay in `lib/scoring.ts`/`lib/alerts.ts` |
-| Multi-store route planning ranked by expected value | Nobody | All 16 | `lib/route.ts` route planner is a categorical whitespace feature |
+| Multi-store route planning ranked by expected value | Nobody | All 16 | Categorical whitespace: `lib/route.ts#rankStores` ranks single stores by expected value today; multi-stop TSP ordering across several stores in one trip is a roadmap item, not yet built |
 | Per-trip ROI quantification (confidence-weighted expected value, not just list price) | Endless "profit calculator" (Premium tier, unverified inputs) | All UGC/community products | Expected value = retail value × confidence, surfaced per report and per route |
 | Durable, compliant data supply that can't be cut off by a retailer | PennyCentral, Penny Finder, Facebook groups (first-hand but unstructured) | BrickSeek (already cut off by Walmart), Endless, RebelSavings, Deal Finder tools, Deal Soldier, Hidden Clearances | Allowlist-only sourcing in `lib/compliance.ts`, marketed explicitly as durability |
 | Structured, queryable community data (vs. chat scroll or Facebook feed) | None | Discord/Telegram groups, Facebook groups | Every report is a queryable, deduplicated, scored DB row, not an ephemeral message |
@@ -1341,10 +1341,10 @@ Sources: [Visualping pricing](https://visualping.io/pricing) · [Visualping home
 |---|---|
 | Alerts get "picked clean" in 30–60 minutes; late/rural members lose | Reputation-weighted visibility and confidence scoring reward accurate reporting over just being first, and route planning surfaces nearby unclaimed opportunities instead of one national race |
 | Everything feels urgent; chat scroll has no structure or search | Every report is a structured, searchable, deduplicated database row with a confidence score — not an ephemeral ping |
-| No verification of whether the automated "Sniper X"-style alert is even real | Receipt-verified, first-hand reports replace opaque bot-sourced alerts entirely |
+| No verification of whether the automated "Sniper X"-style alert is even real | Evidence-weighted, first-hand reports (receipt, shelf tag, product photo, or text-only, per `lib/constants.ts`) replace opaque bot-sourced alerts entirely |
 | $44/month for data with an undisclosed, compliance-risky sourcing model | Transparent, allowlist-only sourcing that can be marketed honestly, at a price point anchored to real accuracy instead of speed-of-scrape |
 | Alert fatigue (20–50+ notifications/day) | Threshold- and relevance-based alert gating (store distance, confidence, category) instead of firehose posting |
-| No trip planning — a Discord ping doesn't become a plan | Multi-store route planner turns confirmed reports into a ranked, ROI-scored trip |
+| No trip planning — a Discord ping doesn't become a plan | `lib/route.ts` ranks nearby stores by expected value today, surfacing unclaimed opportunities instead of one national race; multi-stop trip ordering across those stores is a roadmap item |
 | Existential platform risk if the underlying monitoring tool gets cut off or sued | Data model has no retailer kill switch — durability becomes the marketing pitch |
 
 ## Table 5: What would make BrickSeek-style lookup tools feel outdated
@@ -1353,7 +1353,7 @@ Sources: [Visualping pricing](https://visualping.io/pricing) · [Visualping home
 |---|---|
 | Chronic accuracy complaints; stale inventory counts (theft, damage, miscounts) | Confirm/dead voting with decay means stale data visibly dies instead of silently rotting |
 | Walmart already cut off BrickSeek's in-store data — proof the model is fragile | First-hand, in-store, user-generated data has no retailer-side kill switch |
-| No proof layer — no receipts, no verification of whether a deal actually rang up | Receipt-verified reports with visible confidence scores per item |
+| No proof layer — no receipts, no verification of whether a deal actually rang up | Evidence-weighted reports (receipt scores highest, but shelf tag/product photo/text-only are also accepted per `lib/constants.ts`) with visible confidence scores per item |
 | Best data gated behind escalating paywalls (Premium/Extreme/BrickSeek One + add-on packs) | Core trust-relevant data (confidence, confirmations, freshness) never paywalled; monetize convenience/routing instead |
 | No routing — users manually cross-reference multiple stores | Built-in single-store route ranking by expected value (`lib/route.ts#rankStores`) today; multi-stop trip ordering (TSP) is a roadmap item, not yet built |
 | Community bolted on (Discord/Facebook) rather than the data source itself | Community *is* the data source — reputation and voting compound directly into trust, not a side channel |
@@ -1403,12 +1403,16 @@ trustworthy UX and clean sourcing can coexist yet.
 
 ## Five things PennyForge should build or emphasize first (cross-competitor consensus)
 
-1. **Receipt-verified proof with a visible confidence score per item** — the single most
+1. **Evidence-weighted proof with a visible confidence score per item** — the single most
    universally absent feature; every competitor either has no verification or merely asserts it.
+   Today PennyForge already scores receipt, shelf-tag, product-photo, and text-only evidence
+   differently (`lib/constants.ts`); leaning further into receipt-first UX is the natural next step.
 2. **Confirm/dead voting with decay** — directly answers the "already gone" / "picked clean" /
    stale-data complaint that recurs across almost every teardown.
-3. **Multi-store route planning by expected value** — a categorical whitespace feature; not one
-   of the 16 competitors offers trip-level ROI planning.
+3. **Multi-stop route planning by expected value** — a categorical whitespace feature; not one
+   of the 16 competitors offers trip-level ROI planning. `lib/route.ts` already ranks individual
+   stores by expected value — ordering a multi-stop trip across them is the natural next increment,
+   not a new capability area.
 4. **Store-level (not city/state) freshness signals** — PennyCentral is the closest any competitor
    gets, and it stops at state/city granularity with no decay.
 5. **Explicit compliance-as-marketing** — no competitor states a clean sourcing policy as a trust
