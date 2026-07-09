@@ -20,10 +20,12 @@ Do NOT run `npx playwright install` — downloads are disabled
 ## Setup
 
 ```bash
-cp .env.example .env      # DATABASE_URL="file:./dev.db" — Prisma fails without it
+[ -f .env ] || cp .env.example .env   # DATABASE_URL="file:./dev.db" — Prisma fails without it
 npm install               # includes playwright-core (devDependency) for the driver
 npx prisma migrate dev    # applies migrations AND auto-runs the seed (demo users/leads)
 ```
+
+(The no-clobber guard matches `scripts/setup.sh` — never overwrite an existing `.env`.)
 
 No separate build step for dev — `next dev` compiles on demand.
 
@@ -109,6 +111,6 @@ Unit tests are pure-function tests (`lib/*`); they don't need the server or the 
 - **`Error: Cannot find module 'playwright-core'`**: `npm install` hasn't run
   (it's in devDependencies).
 - **`Environment variable not found: DATABASE_URL`** from any Prisma command:
-  `.env` is missing — `cp .env.example .env`.
+  `.env` is missing — `[ -f .env ] || cp .env.example .env`.
 - **Smoke fails at "feed shows 0 lead cards"**: DB exists but is empty —
   `npx prisma db seed`.

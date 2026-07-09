@@ -12,12 +12,32 @@
 //   PF_CHROMIUM   default /opt/pw-browsers/chromium (Claude remote-env symlink)
 
 import { chromium } from "playwright-core";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const BASE = process.env.PF_BASE_URL ?? "http://localhost:3000";
 const SHOTS = process.env.PF_SHOTS_DIR ?? "/tmp/pennyforge-shots";
-const EXE = process.env.PF_CHROMIUM ?? "/opt/pw-browsers/chromium";
+
+// playwright-core ships no browser; find one rather than hard-coding a path
+// that only exists in the Claude remote container.
+function findChromium() {
+  if (process.env.PF_CHROMIUM) return process.env.PF_CHROMIUM;
+  const roots = [process.env.PLAYWRIGHT_BROWSERS_PATH, "/opt/pw-browsers"].filter(Boolean);
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    const symlink = join(root, "chromium");
+    if (existsSync(symlink)) return symlink;
+    for (const dir of readdirSync(root)) {
+      if (!dir.startsWith("chromium-")) continue;
+      const exe = join(root, dir, "chrome-linux", "chrome");
+      if (existsSync(exe)) return exe;
+    }
+  }
+  throw new Error(
+    "No Chromium found under PLAYWRIGHT_BROWSERS_PATH or /opt/pw-browsers — set PF_CHROMIUM to a Chrome/Chromium executable."
+  );
+}
+const EXE = findChromium();
 
 async function withPage(fn) {
   mkdirSync(SHOTS, { recursive: true });
