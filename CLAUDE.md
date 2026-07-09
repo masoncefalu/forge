@@ -38,16 +38,17 @@ npx vitest run tests/scoring.test.ts   # single test file
 npx vitest run -t "decay"              # tests matching a name pattern
 npm run lint           # next lint
 npm run typecheck      # tsc --noEmit
-npm run verify         # lint + typecheck + test + build (mirrors CI; run before pushing)
+npm run verify         # lint + typecheck + test + build (CI's check steps; run before pushing)
 
 npm run db:migrate:dev # prisma migrate dev (new migration against local SQLite)
 npm run db:seed        # reseed demo data
 npx prisma studio      # inspect the local SQLite DB visually
 ```
 
-CI (`.github/workflows/ci.yml`) runs install → prisma generate/migrate/seed → lint → typecheck →
-test → build on every PR to `main`. `DATABASE_URL` must be set (a `file:` URL — see
-`.env.example`); the setup script copies `.env.example` to `.env`.
+CI (`.github/workflows/ci.yml`) runs `npm ci` → `db:generate` → `db:migrate` (deploy) →
+`db:seed` → lint → typecheck → test → build on every PR to `main`, with `DATABASE_URL` set
+directly in the workflow env (no `.env` file). Locally, `DATABASE_URL` comes from `.env` (a
+`file:` URL — see `.env.example`); the setup script copies `.env.example` to `.env`.
 
 ## Architecture
 
@@ -110,7 +111,8 @@ The repo carries a **dormant** Capacitor iOS shell that installs and runs nothin
 
 - `capacitor.config.ts` imports `@capacitor/cli`, which is **not installed**. It is deliberately
   in `tsconfig.json`'s `exclude` list (along with `ios/` and `tooling/`) so `next build` passes.
-  Do not add it back to the typecheck graph or add Capacitor packages to `package.json`.
+  Do not add it back to the typecheck graph, and do not add Capacitor packages to `package.json`
+  by hand — the bootstrap script installs them when activation is actually intended.
 - The native shell points at the **hosted** deployment via `CAPACITOR_SERVER_URL` (the app is
   server-rendered; there is no static export to embed).
 - `codemagic.yaml` and `.github/workflows/ios-release.yml` are release pipelines that only run on
