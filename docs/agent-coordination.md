@@ -52,7 +52,7 @@ around.
 | Lead | A product+store claim that a deal exists, backed by ≥1 report. |
 | Report | One user's first-hand, in-store submission (price, store, evidence, source type). |
 | Evidence | `RECEIPT`, `SHELF_TAG_PHOTO`, `PRODUCT_PHOTO`, or `TEXT_ONLY` (`lib/constants.ts`). |
-| Confirmation / dead vote | Community `CONFIRMED`/`DEAD` votes; 2+ net dead votes suppress a lead. |
+| Confirmation / dead vote | Community `CONFIRMED`/`DEAD` votes; a lead is suppressed when it has ≥2 dead votes AND more deads than confirms (`lib/scoring.ts#isSuppressed`). |
 | Trust score | Per-user reputation earned via confirmed reports, lost via dead votes (`lib/scoring.ts`). |
 | Confidence score | Per-lead score from evidence strength, reporter trust, votes, freshness decay. |
 | Route ROI | Expected value of visiting a store minus travel cost (`lib/route.ts`). |
@@ -78,6 +78,8 @@ implication: >                  # <=40 words — what PennyForge should do diffe
 supports: [card IDs]            # optional
 contradicts: [card IDs]         # optional — MUST be filled if the agent knows of one
 expires: YYYY-MM-DD | none      # when this claim likely goes stale
+superseded-by: card ID          # Coordinator-set only, during merge (§10) — agents leave unset
+provisional: true               # Coordinator-set only, freshness tiebreaks (§10) — agents leave unset
 ```
 
 Caps: one claim per card, ≤120 words per card, ≤12 cards per agent handoff. If an agent has more
@@ -157,8 +159,9 @@ Agents read this repo first; external research fills gaps the repo doesn't answe
 1. **Intake validation** — reject any handoff missing the attestation, exceeding caps, or with
    unlabeled cards. Return for fix; do not partially merge.
 2. **Compliance gate** — quarantine every High/Unknown card out of the decision pool first.
-3. **Dedupe** — key cards by `(topic, claim-subject)`; merge duplicates into the highest-confidence
-   card, unioning `evidence` and `supports`.
+3. **Dedupe** — key cards by normalized `topic`; same-key cards whose `claim`s assert the same
+   thing are duplicates — merge them into the highest-confidence card, unioning `evidence` and
+   `supports`. Same-key cards with incompatible `claim`s are conflicts, not duplicates (§10).
 4. **Conflict detection** — build the contradiction graph from `contradicts` plus any same-key
    cards with incompatible claims; resolve per §10 before lane merges.
 5. **Lane merges** — combine cards per lane (Product / Compliance / Core logic) into one lane
