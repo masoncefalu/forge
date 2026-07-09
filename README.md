@@ -53,3 +53,12 @@ demo users via a cookie. See `docs/product-spec.md` for the roadmap to real auth
 - `docs/compliance.md` — allowed/forbidden data sources, UGC policy, privacy constraints.
 - `docs/scoring.md` — confidence algorithm, evidence weights, decay, route score formula.
 - `docs/testing.md` — acceptance tests, unit tests, manual QA script.
+
+### iOS / App Store & tooling
+
+- `docs/recommended-app-store-path.md` — **start here**: the sequenced plan from web MVP to App Store.
+- `docs/tooling-options.md` — full audit of Capacitor, Fastlane, Codemagic, Bitrise, Xcode Cloud, Vercel, Supabase, Sentry, RevenueCat.
+- `docs/mobile-automation-stack.md` — Capacitor + Fastlane pipeline and how the staged scaffolding activates.
+- `docs/ios-ci-cd-options.md` — which cloud runs the iOS build (Codemagic vs GitHub Actions vs Bitrise vs Xcode Cloud).
+- `docs/ios-roadmap.md` — distribution-path rationale (Capacitor vs React Native vs SwiftUI).
+- `docs/app-store-checklist.md` — Apple Developer, privacy labels, permissions, TestFlight, review-risk checklist.

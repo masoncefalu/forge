@@ -1,0 +1,7 @@
+# Pins Fastlane for reproducible local + CI release runs.
+# Copied to ios/App/Gemfile by scripts/ios-bootstrap.sh. After activation:
+#   cd ios/App && bundle install && bundle exec fastlane beta
+source "https://rubygems.org"
+
+gem "fastlane"
+gem "cocoapods"

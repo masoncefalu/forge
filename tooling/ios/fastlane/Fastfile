@@ -1,0 +1,94 @@
+# PennyForge — Fastlane iOS release lanes (TEMPLATE).
+#
+# Copied into ios/App/fastlane/ by scripts/ios-bootstrap.sh. Fastlane runs from
+# ios/App/, so paths below are relative to that directory. "App" is Capacitor's
+# default Xcode project + scheme name.
+#
+# Auth: App Store Connect API key (ASC_KEY_*) is preferred over Apple-ID login
+# because it works in CI without an interactive 2FA prompt. Signing: uses
+# `match` if MATCH_GIT_URL is set, otherwise assumes Xcode automatic signing.
+
+default_platform(:ios)
+
+APP_IDENTIFIER = "com.pennyforge.app"
+XCODEPROJ      = "App.xcodeproj"
+WORKSPACE      = "App.xcworkspace"
+SCHEME         = "App"
+
+platform :ios do
+  before_all do
+    # Creates a temporary CI keychain so signing doesn't prompt on a headless mac.
+    setup_ci if ENV["CI"]
+  end
+
+  desc "Build a signed IPA and upload it to TestFlight"
+  lane :beta do
+    key = asc_api_key
+
+    match(type: "appstore", readonly: !ENV["CI"].nil?, api_key: key) if ENV["MATCH_GIT_URL"]
+
+    # Build number = latest TestFlight build + 1, so uploads never collide.
+    latest = latest_testflight_build_number(
+      api_key: key,
+      app_identifier: APP_IDENTIFIER,
+    ) rescue 0
+    increment_build_number(build_number: latest + 1, xcodeproj: XCODEPROJ)
+
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      output_directory: "build",
+      clean: true,
+    )
+
+    upload_to_testflight(
+      api_key: key,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+    )
+  end
+
+  desc "Build and submit to App Store review (metadata from fastlane/metadata)"
+  lane :release do
+    key = asc_api_key
+
+    match(type: "appstore", readonly: !ENV["CI"].nil?, api_key: key) if ENV["MATCH_GIT_URL"]
+
+    latest = latest_testflight_build_number(
+      api_key: key,
+      app_identifier: APP_IDENTIFIER,
+    ) rescue 0
+    increment_build_number(build_number: latest + 1, xcodeproj: XCODEPROJ)
+
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      output_directory: "build",
+      clean: true,
+    )
+
+    # submit_for_review: false at first so you can eyeball the build in
+    # App Store Connect before releasing. Flip to true once the flow is trusted.
+    upload_to_app_store(
+      api_key: key,
+      submit_for_review: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false,
+    )
+  end
+end
+
+def asc_api_key
+  app_store_connect_api_key(
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    key_content: ENV["ASC_KEY_P8"],
+    is_key_content_base64: true,
+    in_house: false,
+  )
+end

@@ -11,11 +11,20 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "setup": "bash scripts/setup.sh"
+    "setup": "bash scripts/setup.sh",
+    "ios:bootstrap": "bash scripts/ios-bootstrap.sh",
+    "cap:sync": "cap sync ios",
+    "cap:copy": "cap copy ios",
+    "cap:open": "cap open ios",
+    "ios:beta": "cd ios/App && bundle exec fastlane beta",
+    "ios:release": "cd ios/App && bundle exec fastlane release"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,0 +1,14 @@
+# PennyForge — Fastlane match config (TEMPLATE, OPTIONAL).
+#
+# `match` stores your signing certs + provisioning profiles in a private git repo
+# so every machine/CI runner signs identically. Only used if MATCH_GIT_URL is set;
+# otherwise the Fastfile falls back to Xcode automatic signing.
+#
+# The MATCH_GIT_URL repo MUST be private — it holds signing material. MATCH_PASSWORD
+# encrypts its contents. Both live in your secrets store, never in git.
+
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+type("appstore")
+app_identifier([ENV["APP_IDENTIFIER"] || "com.pennyforge.app"])
+readonly(!ENV["CI"].nil?)

@@ -1,0 +1,70 @@
+# PennyForge — Codemagic mobile CI/CD (STAGED — inert until the repo is connected
+# in the Codemagic dashboard). This file does nothing on GitHub; Codemagic only
+# reads it after you add the repo at codemagic.io and create the App Store Connect
+# integration + `pennyforge_ios` environment group named below.
+#
+# See docs/ios-ci-cd-options.md for the Codemagic-vs-Bitrise-vs-GitHub-Actions
+# comparison and the exact setup steps.
+
+workflows:
+  ios-testflight:
+    name: PennyForge iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # Create this in Codemagic: Teams → Integrations → App Store Connect.
+      app_store_connect: pennyforge_asc
+    environment:
+      groups:
+        # Create in Codemagic: App settings → Environment variables. Holds the
+        # BUNDLE_ID / APP_STORE_APPLE_ID and any signing overrides.
+        - pennyforge_ios
+      vars:
+        BUNDLE_ID: "com.pennyforge.app"
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        # Numeric "Apple ID" of the App Store Connect app record (App Information
+        # → General → Apple ID). Fill in after creating the app record.
+        APP_STORE_APPLE_ID: "0000000000"
+      node: 20
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "ios-v*"
+          include: true
+    scripts:
+      - name: Install JS dependencies
+        script: npm ci
+      - name: Build Next.js assets
+        script: npm run build
+      - name: Sync Capacitor iOS project
+        script: npx cap sync ios
+      - name: Set up code signing (managed by Codemagic)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Bump build number to latest TestFlight + 1
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          cd ios/App && agvtool new-version -all $((LATEST + 1))
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Add external tester group names here once you have a beta group set up:
+        # beta_groups:
+        #   - PennyForge Beta
