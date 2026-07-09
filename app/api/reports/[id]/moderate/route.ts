@@ -29,10 +29,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // A report can still be community-suppressed (2+ dead votes outnumbering
   // confirms) or already past its expiry threshold even while sitting in
   // the moderation queue. Approving it anyway would make a dead-voted or
-  // stale lead visible in the feed/alerts/route planner (or just silently
-  // do nothing, since the feed/route planner filter it right back out) —
-  // block both transitions explicitly. REJECTED remains allowed for either
-  // case since it doesn't misrepresent the lead as live.
+  // stale lead visible in the feed/search/route planner (or just silently
+  // do nothing, since those surfaces filter it right back out) — block
+  // both transitions explicitly. REJECTED remains allowed for either case
+  // since it doesn't misrepresent the lead as live.
   if (status === "APPROVED") {
     if (isSuppressed({ confirms: lead.confirms, deads: lead.deads })) {
       return NextResponse.json(
