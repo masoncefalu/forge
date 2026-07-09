@@ -1,0 +1,84 @@
+# iOS release readiness workflow.
+#
+# Today the repo has no Capacitor/Xcode project yet (see docs/ios-deployment.md), so this
+# workflow runs in "readiness check" mode: it verifies the web app builds on macOS and reports
+# which Apple/App Store Connect secrets are configured vs still missing
+# (see docs/github-secrets.md for the exact names and how to obtain each value).
+#
+# Once the ios/ Capacitor project lands, extend the release job below with the archive +
+# export + upload steps outlined in docs/ios-deployment.md Phase 4.
+
+name: iOS Release Readiness
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets-check:
+    name: Check required Apple secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report configured vs missing secrets
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
+          IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          missing=0
+          for name in APPLE_TEAM_ID IOS_BUNDLE_ID ASC_ISSUER_ID ASC_KEY_ID ASC_API_KEY_BASE64 \
+                      ASC_APP_ID IOS_DIST_CERT_BASE64 IOS_DIST_CERT_PASSWORD \
+                      IOS_PROVISIONING_PROFILE_BASE64 IOS_KEYCHAIN_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::warning::Missing secret: $name (see docs/github-secrets.md)"
+              missing=$((missing + 1))
+            else
+              echo "OK: $name is set"
+            fi
+          done
+          if [ "$missing" -gt 0 ]; then
+            echo "$missing secret(s) still need to be added at:"
+            echo "https://github.com/${GITHUB_REPOSITORY}/settings/secrets/actions"
+          else
+            echo "All iOS release secrets are configured."
+          fi
+
+  macos-build:
+    name: Verify web build on macOS runner
+    runs-on: macos-latest
+    env:
+      DATABASE_URL: "file:./dev.db"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Verify (lint + typecheck + test + build)
+        run: npm run verify
+
+      # Placeholder for the future Capacitor/Xcode pipeline (docs/ios-deployment.md Phase 4):
+      # - npx cap sync ios
+      # - decode IOS_DIST_CERT_BASE64 / IOS_PROVISIONING_PROFILE_BASE64 into a temp keychain
+      # - xcodebuild archive && xcodebuild -exportArchive
+      # - upload to App Store Connect with the ASC API key
