@@ -66,6 +66,12 @@ function effectiveAge(ageDays: number, lastConfirmAgeDays?: number | null): numb
     : ageDays;
 }
 
+// Same sharing rationale as effectiveAge: one decay curve for both
+// per-lead confidence and store-level freshness.
+function decayFactor(effectiveAgeDays: number, dealType: DealType): number {
+  return Math.pow(0.5, effectiveAgeDays / HALF_LIFE_DAYS[dealType]);
+}
+
 /** Full component breakdown so the UI can explain WHY a lead is trusted. */
 export function scoreBreakdown(input: ScoreInput): ScoreBreakdown {
   const {
@@ -84,12 +90,12 @@ export function scoreBreakdown(input: ScoreInput): ScoreBreakdown {
   const deadPenalty = deads * DEAD_PENALTY;
 
   const effectiveAgeDays = effectiveAge(ageDays, lastConfirmAgeDays);
-  const decayFactor = Math.pow(0.5, effectiveAgeDays / HALF_LIFE_DAYS[dealType]);
+  const decay = decayFactor(effectiveAgeDays, dealType);
 
   const raw = base + trustBonus + confirmBonus - deadPenalty;
-  const final = clamp(Math.round(raw * decayFactor), 0, 100);
+  const final = clamp(Math.round(raw * decay), 0, 100);
 
-  return { base, trustBonus, confirmBonus, deadPenalty, decayFactor, effectiveAgeDays, final };
+  return { base, trustBonus, confirmBonus, deadPenalty, decayFactor: decay, effectiveAgeDays, final };
 }
 
 export interface FreshnessInput {
@@ -110,8 +116,7 @@ export function storeFreshnessScore(leads: FreshnessInput[]): number {
 
   const bestDecay = leads.reduce((max, lead) => {
     const effectiveAgeDays = effectiveAge(lead.ageDays, lead.lastConfirmAgeDays);
-    const decayFactor = Math.pow(0.5, effectiveAgeDays / HALF_LIFE_DAYS[lead.dealType]);
-    return Math.max(max, decayFactor);
+    return Math.max(max, decayFactor(effectiveAgeDays, lead.dealType));
   }, 0);
 
   return clamp(Math.round(100 * bestDecay), 0, 100);

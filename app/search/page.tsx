@@ -65,24 +65,27 @@ export default async function SearchPage({
               No products match &ldquo;{query}&rdquo;. Try a partial UPC or the product name.
             </p>
           )}
-          {products.map((p) => (
-            <section key={p.id}>
-              <h2 className="font-semibold">
-                {p.name}{" "}
-                <span className="text-sm font-normal text-stone-500">
-                  · {p.retailer.name} · UPC {p.upc ?? "—"} · SKU {p.sku ?? "—"}
-                  {p.msrpCents ? ` · retail ${centsToUSD(p.msrpCents)}` : ""}
-                </span>
-              </h2>
-              <div className="mt-2 grid gap-3">
-                {p.reports.length === 0 ? (
-                  <p className="text-sm text-stone-500">No active leads for this product yet.</p>
-                ) : (
-                  p.reports.map((r) => <LeadCard key={r.id} lead={toLeadView(r)} />)
-                )}
-              </div>
-            </section>
-          ))}
+          {products.map((p) => {
+            const leads = p.reports.map((r) => toLeadView(r)).filter((l) => !l.expired);
+            return (
+              <section key={p.id}>
+                <h2 className="font-semibold">
+                  {p.name}{" "}
+                  <span className="text-sm font-normal text-stone-500">
+                    · {p.retailer.name} · UPC {p.upc ?? "—"} · SKU {p.sku ?? "—"}
+                    {p.msrpCents ? ` · retail ${centsToUSD(p.msrpCents)}` : ""}
+                  </span>
+                </h2>
+                <div className="mt-2 grid gap-3">
+                  {leads.length === 0 ? (
+                    <p className="text-sm text-stone-500">No active leads for this product yet.</p>
+                  ) : (
+                    leads.map((lead) => <LeadCard key={lead.id} lead={lead} />)
+                  )}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>

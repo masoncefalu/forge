@@ -31,6 +31,7 @@ export interface LeadView {
   createdAt: Date;
   score: number;
   breakdown: ScoreBreakdown;
+  expired: boolean;
 }
 
 type ReportWithRelations = Awaited<ReturnType<typeof fetchReports>>[number];
@@ -67,6 +68,7 @@ export function toLeadView(r: ReportWithRelations, now: Date = new Date()): Lead
     dealType: r.dealType as DealType,
     lastConfirmAgeDays,
   });
+  const expired = isExpired(breakdown.effectiveAgeDays, r.dealType as DealType);
 
   return {
     id: r.id,
@@ -94,6 +96,7 @@ export function toLeadView(r: ReportWithRelations, now: Date = new Date()): Lead
     createdAt: r.createdAt,
     score: breakdown.final,
     breakdown,
+    expired,
   };
 }
 
@@ -121,8 +124,7 @@ export async function getFeedLeads(filter: {
   const reports = await fetchReports(where);
   return reports
     .map((r) => toLeadView(r))
-    .filter((l) => !isExpired(l.breakdown.effectiveAgeDays, l.dealType))
-    .filter((l) => l.score >= (filter.minScore ?? 0))
+    .filter((l) => !l.expired && l.score >= (filter.minScore ?? 0))
     .sort((a, b) => b.score - a.score);
 }
 

@@ -1,18 +1,16 @@
-export interface StatusInput {
+export interface ReportStatusState {
   status: string;
   previousStatus: string | null;
 }
 
-export interface StatusUpdate {
-  status: string;
-  previousStatus: string | null;
-}
-
-/**
- * Decides the new status/previousStatus after a vote changes suppression
- * state. Returns null if no DB write is needed (status is already correct).
- */
-export function resolveStatusAfterVotes(current: StatusInput, suppressed: boolean): StatusUpdate | null {
+// Suppression is vote-driven and can flip either direction as votes change,
+// so this runs on every vote rather than only when a threshold is first
+// crossed — the null return is what makes repeated calls with an
+// already-correct status a no-op instead of a redundant write.
+export function resolveStatusAfterVotes(
+  current: ReportStatusState,
+  suppressed: boolean
+): ReportStatusState | null {
   if (suppressed && current.status !== "SUPPRESSED") {
     return { status: "SUPPRESSED", previousStatus: current.status };
   }

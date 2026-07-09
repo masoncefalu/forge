@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/currentUser";
 import { MODERATABLE_STATUSES } from "@/lib/constants";
 import { isSuppressed } from "@/lib/scoring";
+import { getLeadById } from "@/lib/leads";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: reportId } = await params;
@@ -22,21 +23,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  const existing = await prisma.report.findUnique({ where: { id: reportId }, include: { votes: true } });
-  if (!existing) return NextResponse.json({ error: "Unknown report" }, { status: 404 });
+  const lead = await getLeadById(reportId);
+  if (!lead) return NextResponse.json({ error: "Unknown report" }, { status: 404 });
 
   // A report can still be community-suppressed (2+ dead votes outnumbering
-  // confirms) even while sitting in the moderation queue. Approving it
-  // anyway would make a dead-voted lead visible in the feed/alerts/route
-  // planner until the next vote happens to recompute status — silently
-  // breaking dead-deal suppression. Block that transition explicitly;
-  // REJECTED remains allowed since it doesn't misrepresent the lead as live.
+  // confirms) or already past its expiry threshold even while sitting in
+  // the moderation queue. Approving it anyway would make a dead-voted or
+  // stale lead visible in the feed/alerts/route planner (or just silently
+  // do nothing, since the feed/route planner filter it right back out) —
+  // block both transitions explicitly. REJECTED remains allowed for either
+  // case since it doesn't misrepresent the lead as live.
   if (status === "APPROVED") {
-    const confirms = existing.votes.filter((v) => v.vote === "CONFIRMED").length;
-    const deads = existing.votes.filter((v) => v.vote === "DEAD").length;
-    if (isSuppressed({ confirms, deads })) {
+    if (isSuppressed({ confirms: lead.confirms, deads: lead.deads })) {
       return NextResponse.json(
         { error: "This report is community-suppressed by dead votes and can't be approved until votes change." },
+        { status: 409 }
+      );
+    }
+    if (lead.expired) {
+      return NextResponse.json(
+        { error: "This report has expired and can no longer be approved." },
         { status: 409 }
       );
     }

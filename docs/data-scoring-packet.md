@@ -3,11 +3,9 @@
 Compressed data-model and scoring reference for downstream consumers (originally commissioned as
 a handoff for "Agent 11") who need the exact contracts — schema shapes, constants, formulas,
 dedupe/suppression rules — without reading through `prisma/schema.prisma` and `lib/*.ts`
-themselves. Every number in this doc is copied from source, not approximated. Where a section
-documents work landing concurrently from sibling agents in this same batch (`storeFreshnessScore`,
-`EXPIRED` derived status), that is called out explicitly so this doc stays accurate regardless of
-merge order. Source of truth remains the code — see `docs/scoring.md` and `docs/compliance.md` for
-the narrative version of the scoring/compliance sections.
+themselves. Every number in this doc is copied from source, not approximated. Source of truth
+remains the code — see `docs/scoring.md` and `docs/compliance.md` for the narrative version of the
+scoring/compliance sections.
 
 ## 1. Schema summary
 
@@ -54,17 +52,17 @@ disambiguation key.
 | PUBLISHED (status) | `APPROVED` | unchanged semantics |
 | REJECTED (status) | `REJECTED` | unchanged |
 | SUPPRESSED (status) | `SUPPRESSED` | vote-driven only (`isSuppressed`) — never set directly by a moderator |
-| EXPIRED (status) | `EXPIRED` (derived, not stored) | see §14. Sibling-batch addition to `lib/constants.ts#REPORT_STATUSES`; computed at read time via `isExpired()` (intended for `lib/reports.ts`), never written to the `Report.status` column; excluded from `MODERATABLE_STATUSES` |
+| EXPIRED (status) | `EXPIRED` (derived, not stored) | see §14. In `lib/constants.ts#REPORT_STATUSES`; computed at read time via `lib/reports.ts#isExpired()`, never written to the `Report.status` column; excluded from `MODERATABLE_STATUSES` |
 | CONFIRMED (vote) | `CONFIRMED` | unchanged |
 | DEAD (vote) | `DEAD` | unchanged |
 
-Current `lib/constants.ts` arrays (ground truth as of this worktree, pre-sibling-merge):
+Current `lib/constants.ts` arrays:
 
 ```ts
 ROLES              = ["USER", "CAPTAIN", "ADMIN"]
 DEAL_TYPES         = ["PENNY", "CLEARANCE"]
 EVIDENCE_TYPES     = ["RECEIPT", "SHELF_TAG_PHOTO", "PRODUCT_PHOTO", "TEXT_ONLY"]
-REPORT_STATUSES    = ["PENDING", "APPROVED", "REJECTED", "SUPPRESSED"]   // + "EXPIRED" landing this batch, see §14
+REPORT_STATUSES    = ["PENDING", "APPROVED", "REJECTED", "SUPPRESSED", "EXPIRED"]
 MODERATABLE_STATUSES = ["APPROVED", "REJECTED"]
 VOTE_TYPES         = ["CONFIRMED", "DEAD"]
 ```
@@ -171,14 +169,15 @@ This means suppression reversal restores the exact prior state (e.g. an already-
 comes back `APPROVED`, not reset to `PENDING`), so a report never re-enters the moderation queue
 just because it was briefly suppressed. The moderation endpoint
 (`app/api/reports/[id]/moderate/route.ts`) additionally refuses to `APPROVE` a report that is
-currently suppressed by vote count, to avoid a moderator action silently overriding community
-dead-vote signal.
+currently suppressed by vote count or already past its expiry threshold (§13), to avoid a
+moderator action silently overriding community dead-vote signal or approving a report that would
+just be filtered right back out of the feed.
 
 ## 8. Store freshness score
 
-**Note:** `storeFreshnessScore` is being added to `lib/scoring.ts` by a sibling worker in this
-batch and is not present in this worktree's `lib/scoring.ts` yet; documented here per the exact
-design handed to this task so the doc is accurate at merge time.
+`storeFreshnessScore` (`lib/scoring.ts`) is a pure, unit-tested function with no current UI
+consumer — it's implemented and available for a future feed/store badge, not yet rendered
+anywhere.
 
 ```ts
 export interface FreshnessInput {
@@ -286,10 +285,6 @@ like a known-bad one, not silently admitted. `validateReportInput` also enforces
 
 ## 13. Expiry (derived lifecycle state)
 
-**Note:** `EXPIRED` and `isExpired()` are being added by a sibling worker in this batch
-(`lib/reports.ts` / `lib/constants.ts`) and are not present in this worktree yet; documented here
-per the exact design handed to this task.
-
 ```ts
 export const EXPIRY_HALF_LIVES = 4;
 export function isExpired(effectiveAgeDays: number, dealType: DealType): boolean {
@@ -307,14 +302,17 @@ At 4 half-lives, `decayFactor` is down to `0.5^4 = 1/16 ≈ 0.0625` of base — 
 
 Purely derived at read time — no background job, no write to `Report.status` or any other column.
 `EXPIRED` is added to `REPORT_STATUSES` (§2) but intentionally excluded from
-`MODERATABLE_STATUSES`, since a moderator cannot set or unset it. Expired leads are excluded from
-the feed (`lib/leads.ts#getFeedLeads`) and from route planning (`lib/routePlanner.ts`), the same
-way `SUPPRESSED` leads already are.
+`MODERATABLE_STATUSES`, since a moderator cannot set or unset it. `LeadView#expired`
+(`lib/leads.ts#toLeadView`) computes this once per lead and is used to exclude expired leads from
+the feed (`getFeedLeads`), UPC/SKU search (`app/search/page.tsx`), and route planning
+(`lib/routePlanner.ts`) — the same way `SUPPRESSED` leads already are — and to block the
+moderation endpoint from approving an already-expired report (§7). `getLeadById` (the lead detail
+page) does not filter it out — an old link (e.g. from a past alert) still resolves, with the page
+showing an "Expired" indicator instead of a 404.
 
 ## 14. Test inventory
 
-5 suites exist in this worktree today; 4 more land later in this same batch (freshness, expiry,
-contracts, vote-status), for ~9 total once merged.
+9 suites.
 
 | Suite | Status | Covers |
 |---|---|---|
@@ -323,10 +321,10 @@ contracts, vote-status), for ~9 total once merged.
 | `tests/alerts.test.ts` | present | threshold gating, 24h dedupe (same pair), re-alert after window, no cross-dedupe across different product/store pairs, radius fan-out inclusion/exclusion, reporter self-exclusion, missing-coordinates exclusion, custom radius override |
 | `tests/reports.test.ts` | present | `toReportDate` UTC truncation, `makeDupKey` equality/inequality across day boundary and user, `isUniqueViolation` P2002 detection |
 | `tests/compliance.test.ts` | present | allowlist acceptance, blocklist rejection, unknown-source rejection (allowlist-not-denylist), full-input rejection on blocked source, price bounds, evidence URL scheme, valid-input acceptance |
-| `tests/freshness.test.ts` | sibling batch, not yet in this worktree | `storeFreshnessScore` — max-decay-across-leads selection, confirm-refresh per lead, clamping, empty-leads-array → 0 |
-| `tests/expiry.test.ts` | sibling batch, not yet in this worktree | `isExpired` threshold behavior per deal type (28d PENNY / 56d CLEARANCE), feed/route exclusion of expired leads |
-| `tests/contracts.test.ts` | sibling batch, not yet in this worktree | cross-module contract/shape checks (exact scope owned by the sibling worker) |
-| `tests/vote-status.test.ts` | sibling batch, not yet in this worktree | extracted vote-status transition logic (§7) — suppress/unsuppress, `previousStatus` save-and-restore |
+| `tests/freshness.test.ts` | present | `storeFreshnessScore` — max-decay-across-leads selection, confirm-refresh per lead, clamping, empty-leads-array → 0 |
+| `tests/expiry.test.ts` | present | `isExpired` threshold behavior per deal type (28d PENNY / 56d CLEARANCE), `REPORT_STATUSES`/`MODERATABLE_STATUSES` membership |
+| `tests/contracts.test.ts` | present | exact-literal pins for every scoring/alert/route/compliance constant and enum array, plus hand-computed worked-example confidence scores |
+| `tests/vote-status.test.ts` | present | extracted vote-status transition logic (§7) — suppress/unsuppress, `previousStatus` save-and-restore |
 
 ## 15. Edge cases
 

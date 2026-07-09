@@ -31,6 +31,11 @@ export default async function LeadDetailPage({
           <p className="mt-1 text-xs text-stone-500">
             UPC {lead.upc ?? "—"} · SKU {lead.sku ?? "—"} · reported {timeAgo(lead.createdAt)} by @
             {lead.reporterHandle} · status {lead.status}
+            {lead.expired && (
+              <span className="ml-1 rounded bg-stone-200 px-1.5 py-0.5 font-medium text-stone-600">
+                Expired
+              </span>
+            )}
           </p>
         </div>
         <div className="text-right">
