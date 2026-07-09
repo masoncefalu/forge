@@ -1,5 +1,7 @@
 # PennyForge — Fastlane Appfile (TEMPLATE).
-# Values are read from the environment so no identifiers are committed to git.
+# Sensitive identifiers (Apple ID, team ID) are env-only — nothing secret is
+# committed to git. app_identifier defaults to the public bundle ID below so
+# the template works out of the box; override APP_IDENTIFIER to change it.
 
 app_identifier(ENV["APP_IDENTIFIER"] || "com.pennyforge.app")
 apple_id(ENV["FASTLANE_APPLE_ID"])       # Apple ID email (only used for Apple-ID auth fallback)

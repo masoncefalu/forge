@@ -10,7 +10,17 @@
 
 default_platform(:ios)
 
-APP_IDENTIFIER = "com.pennyforge.app"
+# Read app_identifier from Appfile config (respects manual Appfile edits),
+# fall back to ENV and default. This ensures consistency even if Appfile
+# is manually modified.
+APP_IDENTIFIER = begin
+  CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier) ||
+    ENV["APP_IDENTIFIER"] ||
+    "com.pennyforge.app"
+rescue
+  ENV["APP_IDENTIFIER"] || "com.pennyforge.app"
+end
+
 XCODEPROJ      = "App.xcodeproj"
 WORKSPACE      = "App.xcworkspace"
 SCHEME         = "App"
@@ -28,10 +38,13 @@ platform :ios do
     match(type: "appstore", readonly: !ENV["CI"].nil?, api_key: key) if ENV["MATCH_GIT_URL"]
 
     # Build number = latest TestFlight build + 1, so uploads never collide.
+    # initial_build_number is fastlane's own "no builds yet" fallback — it does
+    # not swallow real API/auth failures the way a bare `rescue` would.
     latest = latest_testflight_build_number(
       api_key: key,
       app_identifier: APP_IDENTIFIER,
-    ) rescue 0
+      initial_build_number: 0,
+    )
     increment_build_number(build_number: latest + 1, xcodeproj: XCODEPROJ)
 
     build_app(
@@ -59,7 +72,8 @@ platform :ios do
     latest = latest_testflight_build_number(
       api_key: key,
       app_identifier: APP_IDENTIFIER,
-    ) rescue 0
+      initial_build_number: 0,
+    )
     increment_build_number(build_number: latest + 1, xcodeproj: XCODEPROJ)
 
     build_app(

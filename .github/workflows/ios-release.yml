@@ -77,6 +77,11 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
         run: npm run build
 
+      - name: Install Ruby gems (CocoaPods, Fastlane — pinned by Gemfile)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: ios/App
+        run: bundle install
+
       - name: Sync Capacitor iOS project
         if: steps.guard.outputs.ready == 'true'
         run: npx cap sync ios
@@ -84,11 +89,9 @@ jobs:
       - name: Install CocoaPods dependencies
         if: steps.guard.outputs.ready == 'true'
         working-directory: ios/App
-        run: pod install
+        run: bundle exec pod install
 
       - name: Run Fastlane (${{ github.event.inputs.lane || 'beta' }})
         if: steps.guard.outputs.ready == 'true'
         working-directory: ios/App
-        run: |
-          bundle install
-          bundle exec fastlane ${{ github.event.inputs.lane || 'beta' }}
+        run: bundle exec fastlane ${{ github.event.inputs.lane || 'beta' }}
