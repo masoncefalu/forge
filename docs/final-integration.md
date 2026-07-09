@@ -52,7 +52,7 @@ Decisions locked across all agents. Do not re-litigate these in future sessions.
 | 7 | Business logic lives in framework-free `lib/*.ts` functions, fully unit-tested; route handlers and components stay thin | `CLAUDE.md` |
 | 8 | Enum-like fields are `String` columns validated against `lib/constants.ts` (Prisma/SQLite has no native enum) | `lib/constants.ts` |
 | 9 | Mock auth behind a stable `getCurrentUser()` interface (`lib/currentUser.ts`) so real auth is a one-file swap | `lib/currentUser.ts` |
-| 10 | Users see **badges, never raw scores**; "last confirmed X ago" always visible | `README.md` (Trust Scoring) |
+| 10 | **Target UX, not yet built:** users should see badges, never raw scores, and "last confirmed X ago" should always be visible — current MVP renders the raw numeric score directly (`components/ConfidenceBadge.tsx`) and has no last-confirmed-time field anywhere in `LeadView` or the UI | `README.md` (Trust Scoring) — unimplemented, see Section 10 |
 | 11 | Postgres migration is a `datasource` swap; no SQLite-only features beyond the documented `reportDate` workaround | `CLAUDE.md`, schema comments |
 | 12 | Design language: "Thermal Receipt Modernism" — mono type for prices/SKUs, clearance-tag yellow as sole accent, no coupon-blog cheese | `README.md` (Design Language) |
 | 13 | iOS path: **Capacitor wrap of the existing Next.js app + Fastlane/Codemagic CI** (scaffolded, activatable), not an immediate React Native rewrite — see contradiction R2 below | `docs/recommended-app-store-path.md`, `capacitor.config.ts` |
@@ -195,7 +195,7 @@ Tailwind 3.4 · Prisma 6.7 + SQLite · Vitest 3 · tsx (seeding).
 | Apprise | 1–2 | Alert dispatch fan-out: email + web push first; Discord webhook/Telegram as delivery channels only |
 | Tesseract / receipt-parser lineage → Apple Vision on-device | 2–3 | Receipt OCR; on-device parsing is both a privacy feature and an App Review asset |
 | Impact / Walmart Affiliate API / eBay Partner Network | 2 | Catalog enrichment + resale comps via official affiliate feeds — never scraped |
-| Capacitor + Fastlane + Codemagic (scaffolded in-repo) | 3–4 | iOS wrapper + signed CI builds; activation via `npm run ios:bootstrap`. Verified wiring: ASC API key + Fastlane `match`/automatic signing (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8`/`DEVELOPER_TEAM_ID`/`FASTLANE_APPLE_ID`/`CAPACITOR_SERVER_URL`), **not** a manual `.p12`/`.mobileprovision` flow — see R4. Codemagic is primary, GitHub Actions (`ios-release.yml`) is the fallback/readiness-check runner — see R5. |
+| Capacitor + Fastlane + Codemagic (scaffolded in-repo) | 3–4 | iOS wrapper + signed CI builds; activation via `npm run ios:bootstrap`. Verified wiring: ASC API key + Fastlane `match`/automatic signing (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8`/`DEVELOPER_TEAM_ID`/`FASTLANE_APPLE_ID`/`CAPACITOR_SERVER_URL`), **not** a manual `.p12`/`.mobileprovision` flow — see R4. Codemagic is primary, GitHub Actions (`ios-release.yml`) is the fallback/readiness-check runner — see R5. **Known gap, not yet verified working:** `capacitor.config.ts` sets `webDir: 'public'`, but no `public/` directory exists in this repo snapshot — `cap sync`/`cap add ios` require an existing web-assets directory with an `index.html` or they error. Something (the bootstrap script or a manual step) must create `public/` before `npm run ios:bootstrap` will succeed. |
 | Postgres (Supabase) + pg-boss | 1 | Hosted DB + job queue when concurrent writes/hosting require it. `.env.example` stages Supabase env vars specifically; confirm with Mason before Phase 1 kickoff — see R6 |
 | next-intl | 1 | i18n scaffolding so Spanish is a locale file, not a refactor |
 
@@ -204,9 +204,13 @@ Tailwind 3.4 · Prisma 6.7 + SQLite · Vitest 3 · tsx (seeding).
 **Wedge:** trust, workflow, and community economics — not data freshness from indefensible sources.
 
 1. **Receipt-verified confidence** — evidence weighting nobody in the niche does.
-2. **Waze model** — reporter reputation rises on confirmations, falls on flags; badges, never raw scores.
+2. **Waze model** — reporter reputation rises on confirmations, falls on flags; target UX is badges,
+   never raw scores (**not yet implemented** — `ConfidenceBadge` currently renders the raw numeric
+   score directly).
 3. **Route ROI** — trips ranked by confidence × value ÷ cost; a Saturday hunt with math behind it.
-4. **Honest freshness** — aggressive decay, dead-vote suppression, "last confirmed 6h ago" visible.
+4. **Honest freshness** — aggressive decay, dead-vote suppression, target UX shows "last confirmed
+   6h ago" (**not yet surfaced** — the UI currently only shows report creation-time age via
+   `timeAgo`; no last-confirmed timestamp exists in `LeadView` or on screen).
 5. **Contributor economics** — verified contributions earn Pro credits; the moat compounds and can't be scraped.
 6. **Compliance as moat** — when C&Ds hit gray-data rivals, PennyForge keeps standing.
 7. **Bilingual from day one** (Phase 1+) — Spanish UX the niche ignores.
@@ -273,8 +277,11 @@ score = clamp( (evidenceBase + trustBonus + confirmBonus − deadPenalty) × dec
 - **Dead penalty:** −18 per dead vote, uncapped ("it's gone" is a stronger signal than "still there").
 - **Decay:** `0.5^(effectiveAgeDays / halfLife)`; half-life 7d (PENNY) / 14d (CLEARANCE); a recent
   confirmed vote resets the effective age — community verification keeps leads alive.
-- **Suppression:** `deads >= 2 && deads > confirms` → status `SUPPRESSED`, removed from feed,
-  alerts, and routing; reverses automatically, restoring `previousStatus` exactly.
+- **Suppression:** `deads >= 2 && deads > confirms` → status `SUPPRESSED`, removed from the feed,
+  route planner, and *new* alert fan-out; reverses automatically, restoring `previousStatus`
+  exactly. **Known gap:** this does not retract alerts already sent — `app/alerts/page.tsx` loads
+  every `Alert` row for the user with only `where: { userId: user.id }` and no suppression filter,
+  so a user can still see and click through to a now-suppressed/dead lead from an older alert.
 - **Reporter trust:** +2 per confirmation received, −3 per dead vote, clamped [0,100]; vote
   *changes* apply only the net delta (`voteTrustDelta`) so toggling can't inflate or crater trust.
 - **Alerts:** fire at score ≥ 60 to users within 75mi of the store (haversine), excluding the
@@ -299,7 +306,10 @@ dark-first palette (`ink` #101418, `paper` #F7F5F0, `tag` #FFCE00 as the *only* 
 #2E9E6B, `dead` #C24E42 clay — never alarm-red, `mute` #8A9099); monospace for prices/SKUs/
 timestamps/scores, grotesk for UI body; the **Verification Seal** badge ("RECEIPT-VERIFIED · 7 RPT
 · 3 ST · 2D") wherever trust matters and nowhere else; plain active copy, no exclamation points,
-no emoji chrome, no starburst badges, no raw score numbers where a badge belongs.
+no emoji chrome, no starburst badges, no raw score numbers where a badge belongs. **The last rule
+is an open gap versus the mandate, not a shipped anti-pattern already avoided:**
+`components/ConfidenceBadge.tsx` currently renders the raw numeric score (`{score}`) directly, and
+no Verification Seal badge exists yet.
 
 ## 11. Compliance Guardrails
 
@@ -405,9 +415,16 @@ Everything a fresh Claude Code session needs to work on PennyForge safely:
   contract is the ASC-API-key/Fastlane set in `mobile-automation-stack.md`/`tooling-options.md`
   (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `DEVELOPER_TEAM_ID`, `FASTLANE_APPLE_ID`,
   `CAPACITOR_SERVER_URL`, optional `MATCH_*`) — verified against `ios-release.yml` and
-  `tooling/ios/fastlane/Fastfile` directly (see R4). `docs/github-secrets.md` and
-  `docs/credentials-needed.md` describe a superseded manual-signing secret set; a docs-correction
-  pass should reconcile them before anyone provisions credentials. Never paste secrets in chat.
+  `tooling/ios/fastlane/Fastfile` directly (see R4). That list covers the GitHub Actions fallback
+  path only. The Codemagic primary path (`codemagic.yaml`) additionally requires
+  `APP_STORE_APPLE_ID` — a numeric App Store Connect app ID set in the `pennyforge_ios`
+  environment group — which the build-number-bump step (`codemagic.yaml`, around lines 52–59)
+  hard-fails on if left unset, plus `BUNDLE_ID` (`com.pennyforge.app`, already defaulted in
+  `codemagic.yaml`'s `vars` block around lines 19–28). Both must be provisioned in Codemagic's
+  environment-variable UI before the `ios-testflight` workflow can run. `docs/github-secrets.md`
+  and `docs/credentials-needed.md` describe a superseded manual-signing secret set; a
+  docs-correction pass should reconcile them before anyone provisions credentials. Never paste
+  secrets in chat.
 - **Docs drift flagged for cleanup** (found by cross-reading all 13 `docs/*.md` mobile/backend
   files against the actual workflow/Fastlane/`.env.example` code): secret naming (R4), primary CI
   runner framing (R5), primary Phase-1 backend host (R6, a real open decision — ask Mason), CI
@@ -494,8 +511,12 @@ BUILD THE LOCAL MVP VERTICAL SLICE (no external paid services, everything runnab
 - npm scripts: dev/build/test/lint/typecheck, setup (install+migrate+seed), and a `verify`
   script running lint+typecheck+test+build.
 
-UX RULES: users see badges, never raw score numbers, except the lead-detail breakdown that
-explains "why this lead scores X". Show "last confirmed X ago" freshness. Footer disclaimer on
+UX RULES TO BUILD (these are NOT yet implemented — do not treat the current raw-number badge as
+a regression to preserve or "fix"; building the badge system described here is part of the work):
+users should see badges, never raw score numbers, except the lead-detail breakdown that explains
+"why this lead scores X". `components/ConfidenceBadge.tsx` currently renders the raw numeric score
+directly (`{score}`) with no label-only badge — replace it. Show "last confirmed X ago" freshness
+— no such field exists yet in `LeadView` or anywhere in the UI; add it. Footer disclaimer on
 every pricing surface: community-reported, varies by store, nothing guaranteed, not affiliated
 with any retailer, be kind to store employees. Design language: dark-first, monospace for
 prices/SKUs/timestamps, one yellow accent (#FFCE00) reserved for verified-deal moments; no
