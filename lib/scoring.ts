@@ -109,20 +109,31 @@ export function applyTrustDelta(current: number, vote: VoteKind): number {
 }
 
 /**
+ * Net, unclamped trust delta for a vote upsert: undoing the old vote (if
+ * any) and applying the new one collapse to a single signed number because
+ * revert and apply always move in the same direction for a 2-valued vote
+ * (switching TO dead is a net decrease, switching TO confirmed is a net
+ * increase) — so clamping once at the end is equivalent to the old
+ * clamp-after-each-step logic, and this form is also safe to apply as an
+ * atomic DB-level increment (see vote route) instead of a read-modify-write.
+ */
+export function voteTrustDelta(oldVote: VoteKind | null, newVote: VoteKind): number {
+  if (oldVote === newVote) return 0;
+  return (oldVote ? -TRUST_DELTA[oldVote] : 0) + TRUST_DELTA[newVote];
+}
+
+/**
  * Net trust adjustment for a vote upsert. A voter can change or resubmit
  * their vote on the same report at any time (ReportVote is one-per-user),
  * so naively re-applying applyTrustDelta on every vote call would let a
  * single user inflate or crater a reporter's trust by repeatedly toggling
- * their vote. This applies only the DIFFERENCE: unchanged votes are a
- * no-op, and a changed vote first undoes the old delta, then applies the
- * new one — each step still clamped to [0, 100].
+ * their vote. This applies only the DIFFERENCE via voteTrustDelta, clamped
+ * once to [0, 100].
  */
 export function applyVoteChange(
   currentTrust: number,
   oldVote: VoteKind | null,
   newVote: VoteKind
 ): number {
-  if (oldVote === newVote) return clamp(currentTrust, 0, 100);
-  const reverted = oldVote ? clamp(currentTrust - TRUST_DELTA[oldVote], 0, 100) : currentTrust;
-  return applyTrustDelta(reverted, newVote);
+  return clamp(currentTrust + voteTrustDelta(oldVote, newVote), 0, 100);
 }

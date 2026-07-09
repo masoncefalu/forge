@@ -2,7 +2,7 @@
 //
 // One vote per (report, user); voting again overwrites the prior vote rather
 // than double counting. Reporter trust adjusts by the NET change only
-// (lib/scoring.ts#applyVoteChange) — resubmitting the same vote is a no-op
+// (lib/scoring.ts#voteTrustDelta) — resubmitting the same vote is a no-op
 // and switching CONFIRMED<->DEAD undoes the old delta before applying the
 // new one, so repeatedly toggling one vote can't be used to inflate or
 // crater a reporter's trust. Suppression
@@ -13,16 +13,26 @@
 // report survive a suppress/unsuppress cycle instead of being reset to
 // PENDING and reappearing in the moderation queue.
 //
-// The read (report + existing vote + trust) → write (vote, trust, status)
-// sequence runs inside a single prisma.$transaction so two concurrent votes
-// on the same report can't interleave their reads and clobber each other's
-// trust/status write (lost update).
+// The read (report + existing vote) → write (vote, trust, status) sequence
+// runs inside a single prisma.$transaction so two concurrent votes on the
+// SAME report can't interleave their reads and clobber each other's
+// status write (lost update). That alone doesn't cover trustScore, though:
+// a reporter can hold multiple reports, so two votes landing on two
+// DIFFERENT reports by the same reporter run in two separate transactions
+// that could each read the same starting trustScore and then both write a
+// stale computed value. SQLite's single-writer locking serializes the
+// WRITES but not the earlier READS each transaction based its computed
+// value on. To close that gap, the trust update is a single atomic
+// "UPDATE ... SET trustScore = trustScore + delta" (lib/scoring.ts#voteTrustDelta)
+// instead of a read-then-absolute-write — atomic at the SQL statement level
+// regardless of transaction isolation, with clamping done in the same
+// statement so it can never observe a stale intermediate value.
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/currentUser";
 import { VOTE_TYPES } from "@/lib/constants";
-import { isSuppressed, applyVoteChange } from "@/lib/scoring";
+import { isSuppressed, voteTrustDelta } from "@/lib/scoring";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: reportId } = await params;
@@ -35,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const report = await tx.report.findUnique({ where: { id: reportId }, include: { user: true } });
+    const report = await tx.report.findUnique({ where: { id: reportId } });
     if (!report) return { error: "Unknown report", status: 404 as const };
     if (report.userId === user.id) {
       return { error: "You can't vote on your own report", status: 403 as const };
@@ -51,20 +61,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       update: { vote, createdAt: new Date() },
     });
 
-    await tx.user.update({
-      where: { id: report.userId },
-      data: {
-        trustScore: applyVoteChange(
-          report.user.trustScore,
-          (existingVote?.vote as "CONFIRMED" | "DEAD" | undefined) ?? null,
-          vote
-        ),
-      },
-    });
+    const delta = voteTrustDelta(
+      (existingVote?.vote as "CONFIRMED" | "DEAD" | undefined) ?? null,
+      vote
+    );
+    if (delta !== 0) {
+      await tx.$executeRaw`UPDATE "User" SET "trustScore" = MAX(0, MIN(100, "trustScore" + ${delta})) WHERE "id" = ${report.userId}`;
+    }
 
-    const votes = await tx.reportVote.findMany({ where: { reportId } });
-    const confirms = votes.filter((v) => v.vote === "CONFIRMED").length;
-    const deads = votes.filter((v) => v.vote === "DEAD").length;
+    const confirms = await tx.reportVote.count({ where: { reportId, vote: "CONFIRMED" } });
+    const deads = await tx.reportVote.count({ where: { reportId, vote: "DEAD" } });
     const suppressed = isSuppressed({ confirms, deads });
 
     if (suppressed && report.status !== "SUPPRESSED") {
