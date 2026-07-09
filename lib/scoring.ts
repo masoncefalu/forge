@@ -56,6 +56,16 @@ export interface ScoreBreakdown {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+// Freshness is anchored to the most recent positive signal: the report
+// itself, or the latest confirmed vote if newer. Shared by scoreBreakdown
+// (per-lead confidence decay) and storeFreshnessScore (store-level display
+// metric) so the two never drift apart.
+function effectiveAge(ageDays: number, lastConfirmAgeDays?: number | null): number {
+  return lastConfirmAgeDays !== null && lastConfirmAgeDays !== undefined
+    ? Math.min(ageDays, lastConfirmAgeDays)
+    : ageDays;
+}
+
 /** Full component breakdown so the UI can explain WHY a lead is trusted. */
 export function scoreBreakdown(input: ScoreInput): ScoreBreakdown {
   const {
@@ -73,18 +83,38 @@ export function scoreBreakdown(input: ScoreInput): ScoreBreakdown {
   const confirmBonus = Math.min(confirms * CONFIRM_POINTS, CONFIRM_CAP);
   const deadPenalty = deads * DEAD_PENALTY;
 
-  // Freshness is anchored to the most recent positive signal: the report
-  // itself, or the latest confirmed vote if newer.
-  const effectiveAgeDays =
-    lastConfirmAgeDays !== null && lastConfirmAgeDays !== undefined
-      ? Math.min(ageDays, lastConfirmAgeDays)
-      : ageDays;
+  const effectiveAgeDays = effectiveAge(ageDays, lastConfirmAgeDays);
   const decayFactor = Math.pow(0.5, effectiveAgeDays / HALF_LIFE_DAYS[dealType]);
 
   const raw = base + trustBonus + confirmBonus - deadPenalty;
   const final = clamp(Math.round(raw * decayFactor), 0, 100);
 
   return { base, trustBonus, confirmBonus, deadPenalty, decayFactor, effectiveAgeDays, final };
+}
+
+export interface FreshnessInput {
+  evidenceType: EvidenceType;
+  ageDays: number;
+  dealType: DealType;
+  lastConfirmAgeDays?: number | null;
+}
+
+/**
+ * Store-level freshness (0..100): how recently the store's best-supported
+ * lead was seen or reconfirmed. This is a feed/display metric, not a route
+ * score input — lib/route.ts already discounts each lead's confidence by
+ * age, so multiplying routeScore by this too would double-count decay.
+ */
+export function storeFreshnessScore(leads: FreshnessInput[]): number {
+  if (leads.length === 0) return 0;
+
+  const bestDecay = leads.reduce((max, lead) => {
+    const effectiveAgeDays = effectiveAge(lead.ageDays, lead.lastConfirmAgeDays);
+    const decayFactor = Math.pow(0.5, effectiveAgeDays / HALF_LIFE_DAYS[lead.dealType]);
+    return Math.max(max, decayFactor);
+  }, 0);
+
+  return clamp(Math.round(100 * bestDecay), 0, 100);
 }
 
 export function confidenceScore(input: ScoreInput): number {
