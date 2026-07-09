@@ -88,3 +88,7 @@ npx prisma studio      # inspect the local SQLite DB visually
 ```
 
 See `docs/testing.md` for the full acceptance-test checklist and manual QA script.
+
+See `docs/build-plan.md` for the full execution plan behind the vertical slice above: exact init
+commands, dependency-respecting file creation order, Prisma/seed steps, route/page inventory, test
+setup, a forward-looking git checkpoint plan, and local run instructions.
