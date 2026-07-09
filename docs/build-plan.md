@@ -48,9 +48,11 @@ npx create-next-app@15.3.0 pennyforge \
   --use-npm
 cd pennyforge
 
-# 2. Prisma + SQLite ORM layer
-npm install @prisma/client
-npm install -D prisma
+# 2. Prisma + SQLite ORM layer — pin the major version explicitly (see the gotcha
+#    below: an unpinned install pulls the latest Prisma, and past major version 7
+#    the CLI drops the datasource { url } field this schema relies on)
+npm install @prisma/client@^6.7.0
+npm install -D prisma@^6.7.0
 npx prisma init --datasource-provider sqlite
 # generates prisma/schema.prisma (datasource db { provider = "sqlite" }) and a starter .env
 
@@ -466,8 +468,9 @@ semver ranges in the file.
 | `tsx` | `^4.19.0` | Executes TypeScript directly without a separate build step; used by `package.json`'s `"prisma": { "seed": "tsx prisma/seed.ts" }` field so `prisma db seed` runs the seed script as-authored. |
 
 `npm run verify` chains four of the scripts these packages back — `lint && typecheck && test &&
-build` — as the single "is this repo healthy" gate. Verified directly against this repo's
-`package.json`.
+build` — as a fast local code-health check. It does not run the Prisma steps (`generate`/`migrate
+deploy`/`seed`) that CI also runs — see §11 for the full CI-equivalent sequence. Verified directly
+against this repo's `package.json`.
 
 ## 5. Prisma Setup Steps
 
@@ -1056,14 +1059,19 @@ Re-seeding later without redoing setup: `npm run prisma:seed` or `npm run db:see
 npm test              # vitest run — see §9 for the current 46/46 pass breakdown
 npm run lint           # next lint
 npm run typecheck      # tsc --noEmit
-npm run verify         # lint && typecheck && test && build — the single CI-equivalent gate
+npm run verify         # lint && typecheck && test && build
 npx prisma studio      # opens a local GUI (default http://localhost:5555) against dev.db
 ```
 
 `npm run verify` (confirmed directly in `package.json`) chains exactly `lint && typecheck && test
-&& build`, mirroring what `.github/workflows/ci.yml` runs in CI (install → `prisma generate` →
-`prisma migrate deploy` → `prisma db seed` → `lint` → `test` → `build`). Run it before considering
-any change to this repo done.
+&& build` — the code-level checks, but **not** the Prisma steps. `.github/workflows/ci.yml` runs a
+superset: `npm ci` → `npm run db:generate` (`prisma generate`) → `npm run db:migrate` (`prisma
+migrate deploy`, against a scratch SQLite file) → `npm run db:seed` (`prisma db seed`, "regression
+check for schema/seed script") → `npm run lint` → `npm run typecheck` → `npm test` → `npm run
+build`. `npm run verify` alone can pass while CI fails on a schema, migration, or seed change — for
+changes to `prisma/schema.prisma`, `prisma/migrations/`, or `prisma/seed.ts`, also run `npx prisma
+generate && npx prisma migrate deploy && npx prisma db seed` against a scratch DB (or just
+`npm run setup` again) before considering the change done, not `npm run verify` alone.
 
 ## 12. Final "Next Prompt to Paste into Claude Code"
 
