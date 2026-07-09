@@ -56,7 +56,7 @@ research signal, not legal clearance.
 
 | Name | Rationale | Collision risk | Tagline pairing |
 |---|---|---|---|
-| **ShelfProof** | Puts the core moat — evidence captured at the shelf — directly in the name | Low (no existing app/brand found) | "Deals with receipts, not rumors." |
+| **ShelfProof** | Puts the core moat — evidence captured at the shelf — directly in the name | Medium–High (a live app called "ShelfProof" already exists — barcode scanning + confidence scores for grocery/big-box shoppers — a close collision in this exact space) | "Deals with receipts, not rumors." |
 | **ShelfReport** | Journalistic framing matches the filed-report model exactly | Low–Medium (somewhat generic/descriptive) | "The local clearance wire, verified in-aisle." |
 | **MarkdownMap** | Uses the real retail term of art plus the Waze map promise | Medium (SEO collision with "Markdown" the text format) | "Every verified markdown, mapped." |
 | **MarkdownScout** | "Scout" reads as friendly first-hand reporting, not surveillance | Medium (same Markdown-format SEO shadow) | "Shoppers scouting real markdowns for each other." |
@@ -108,7 +108,7 @@ pronounceability — with the incumbent included, since the real decision is whe
 | Rank | Name | Why it ranks here |
 |---|---|---|
 | 1 | **PennyForge** (incumbent) | Strongest earned equity — already built into the schema, docs, and go-to-market copy, and matches the dominant "Penny + noun" naming convention in this niche. Kept at #1 *contingent on* a clean professional trademark clearance; the domain/handle situation is a real but solvable cost (see §10). |
-| 2 | **ShelfProof** | Cleanest available name that encodes the core differentiator (proof) with the lowest researched collision risk of any alternative. |
+| 2 | **ShelfProof** | Encodes the core differentiator (proof) well, but a live same-name app (barcode scanning + confidence scores for grocery/big-box shoppers) means the collision risk is higher than initially scored — needs a harder look before leaning on it as the fallback. |
 | 3 | **DealRadius** | Cleanest local-first alternative; short, spells itself, low collision signal. |
 | 4 | **AisleScout** | Best encoding of the compliance story (first-hand, in-aisle, "scout" not "scrape") — held back only by a crowded "Aisle" naming neighborhood. |
 | 5 | **Trovato** | Most distinctive, ownable coined option — premium feel, moderate collision risk from an existing surname/small-business use. |
@@ -252,9 +252,9 @@ name in marketing).
 > store, backed by a receipt, a shelf-tag photo, or an in-person observation.
 >
 > Each report earns a confidence score from 0 to 100 based on evidence strength, the reporter's
-> track record, community confirmations, and how recently the item was seen. When a find stops
-> panning out, shoppers mark it dead and it drops out of the feed — so you spend your time on
-> items that are still on the shelf.
+> track record, community confirmations, and how recently the item was seen. When enough shoppers
+> mark a find dead — outnumbering any confirms — it drops out of the feed, so you spend your time
+> on items that are still on the shelf.
 >
 > **How it works**
 > - Browse a local feed of clearance and penny-priced finds, filtered by state, store, and
@@ -277,8 +277,9 @@ name in marketing).
 > - Not a guarantee. Prices are community-reported, vary by store, and change quickly. Availability
 >   is never promised.
 >
-> Clearance pricing is set by each store, and every find is purchased at the posted register price
-> like any other sale. Be kind to store employees — they're the reason this hobby works.
+> Clearance pricing is set by each store, and every find reflects an ordinary in-store observation
+> — a price seen on the shelf or tag, or a purchase completed like any other sale. Be kind to store
+> employees — they're the reason this hobby works.
 >
 > See what your neighbors have already found.
 
@@ -317,9 +318,9 @@ Grounded in `lib/compliance.ts` and the existing footer in `app/layout.tsx`. Ite
 > store signage. That's the complete list. We do not scrape retailer or third-party websites. We
 > do not access retailers' internal systems, private endpoints, or employee tools. We do not
 > ingest, repurchase, or repost data from other deal services. And we never use bots or automated
-> tools to probe store inventory or prices. Our submission system enforces this at the door: any
-> report that doesn't declare a valid first-hand source type — an in-store observation, a receipt,
-> a shelf-tag photo, or public store signage — is rejected before it's ever saved. (What we can't
+> tools to probe store inventory or prices. Our submission system requires every report to declare
+> one of these source types at the door — an in-store observation, a receipt, a shelf-tag photo, or
+> public store signage — and rejects anything that doesn't before it's ever saved. (What we can't
 > do is verify a shopper's real-world honesty beyond the source type and evidence they provide —
 > that's what community confirm/dead voting and reporter trust scores are for.)
 
@@ -328,7 +329,8 @@ Grounded in `lib/compliance.ts` and the existing footer in `app/layout.tsx`. Ite
 > - Submit only finds you personally observed in-store: an item you saw on the shelf, a price you
 >   saw at the register or on a tag, or a purchase you made yourself.
 > - Receipts and photos are your proof. Reports backed by a receipt or shelf-tag photo earn higher
->   confidence and build your trust score.
+>   confidence. Your trust score moves separately, based on how the community confirms or marks
+>   dead the reports you file.
 > - Never fabricate, exaggerate, or repost someone else's find as your own, and never submit data
 >   from scraped sites, other deal communities, or a retailer's internal systems.
 > - Respect store staff and store policies. Be courteous, and don't ask employees to check
@@ -394,7 +396,7 @@ Sampled from live search results (July 2026) — see Appendix A for sources.
    queries exist (*walmart glitch deals*, *clearance hacks*). Strategy: never use
    glitch/hack/trick/secret-exploit language in titles, URLs, or copy. Capture the intent with
    educational reframes that rank on semantic proximity instead — "How penny items actually work
-   (it's not a glitch)," "Why the app price differs from the shelf tag." Hard line: no content
+   (it's not a pricing error)," "Why the app price differs from the shelf tag." Hard line: no content
    implying price-error exploitation or "before the store fixes it" urgency.
 
 ---
@@ -418,9 +420,11 @@ Reasoning:
   directly), the iOS/Android app-store listing names, and social handles across
   Instagram/TikTok/X, before a rebrand decision is even needed.
 - If clearance comes back blocked, or if a rebrand is chosen proactively to shed the
-  forge/forgery double meaning, **ShelfProof** and **DealRadius** are the vetted fallbacks — both
-  scored cleanly in this research, both encode a different half of the positioning (proof vs.
-  local/routing), and both are short enough to survive an app icon.
+  forge/forgery double meaning, **DealRadius** is the cleanest-scoring fallback. **ShelfProof**
+  remains a candidate but carries a higher collision risk than initially scored (a live same-name
+  app already exists — see §2) and would need extra clearance scrutiny. Both still encode a
+  different half of the positioning (proof vs. local/routing) and are short enough to survive an
+  app icon.
 - Whichever name ships, the brand voice, disclaimers, and SEO strategy in this document are name
   agnostic and should carry over unchanged — they were built from the compliance rules and shipped
   feature set, not from the name.
