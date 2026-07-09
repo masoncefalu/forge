@@ -57,12 +57,12 @@ async function smoke() {
 
     // 2. Switch mock-auth user via the header select (sets pf_user_id cookie)
     const switcher = page.locator("header select");
-    await Promise.all([
+    const [userResp] = await Promise.all([
       page.waitForResponse((r) => r.url().includes("/api/user")),
       switcher.selectOption({ label: "@rey_resells (user)" }),
     ]);
     await page.waitForLoadState("networkidle");
-    check(true, "switched acting user to @rey_resells");
+    check(userResp.ok(), `switched acting user to @rey_resells (${userResp.status()})`);
 
     // 3. Vote CONFIRMED on the first lead not authored by us
     //    (the API rejects votes on your own report — skip those cards).
@@ -76,7 +76,9 @@ async function smoke() {
       // The page's static copy contains the word "vote", so match on the API
       // response rather than loose text.
       const [resp] = await Promise.all([
-        page.waitForResponse((r) => r.url().includes("/vote")),
+        page.waitForResponse(
+          (r) => r.request().method() === "POST" && /\/api\/reports\/[^/]+\/vote$/.test(r.url())
+        ),
         page.getByRole("button", { name: "✓ Still there" }).click(),
       ]);
       if (!resp.ok()) continue; // e.g. 403 "can't vote on your own report"
@@ -130,9 +132,15 @@ async function ss(path = "/", name = "page.png") {
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
-if (cmd === "smoke") await smoke();
-else if (cmd === "ss") await ss(...rest);
-else {
-  console.error("usage: driver.mjs smoke | ss <path> [name.png]");
-  process.exit(2);
+try {
+  if (cmd === "smoke") await smoke();
+  else if (cmd === "ss") await ss(...rest);
+  else {
+    console.error("usage: driver.mjs smoke | ss <path> [name.png]");
+    process.exit(2);
+  }
+} catch (err) {
+  // Locator timeouts etc. would otherwise bubble out without a summary line.
+  console.error(`\nDRIVER FAILED: ${err?.message ?? err}`);
+  process.exit(1);
 }
