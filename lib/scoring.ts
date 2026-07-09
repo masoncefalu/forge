@@ -110,7 +110,7 @@ export function applyTrustDelta(current: number, vote: VoteKind): number {
 
 /**
  * Net, unclamped trust delta for a vote upsert: undoing the old vote (if
- * any) and applying the new one collapse to a single signed number because
+ * any) and applying the new one collapses to a single signed number because
  * revert and apply always move in the same direction for a 2-valued vote
  * (switching TO dead is a net decrease, switching TO confirmed is a net
  * increase) — so clamping once at the end is equivalent to the old
