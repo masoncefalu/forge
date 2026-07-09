@@ -130,3 +130,6 @@ The repo carries a **dormant** Capacitor iOS shell that installs and runs nothin
   `reportDate` example above).
 - `docs/testing.md` has the acceptance-test checklist and manual QA script; update it when
   behavior changes.
+- `docs/build-plan.md` has the dependency-ordered build plan behind the first vertical slice:
+  exact init commands, file creation order, Prisma/seed steps, route/page inventory, test setup,
+  and local run instructions.
