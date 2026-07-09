@@ -23,10 +23,14 @@ export default function VoteButtons({ reportId }: { reportId: string }) {
         setMessage(data?.error ?? "Vote failed");
         return;
       }
+      // data can be null if a 2xx body fails to parse — the vote was still
+      // recorded, so fall back to a generic confirmation and refresh anyway.
       setMessage(
-        data.suppressed
-          ? "Recorded. This lead is now suppressed as dead."
-          : `Recorded — ${data.confirms} confirmed, ${data.deads} dead.`
+        data === null
+          ? "Recorded."
+          : data.suppressed
+            ? "Recorded. This lead is now suppressed as dead."
+            : `Recorded — ${data.confirms} confirmed, ${data.deads} dead.`
       );
       startTransition(() => router.refresh());
     } catch {

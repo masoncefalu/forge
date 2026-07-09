@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RoutePage() {
   const user = await getCurrentUser();
-  if (!user) return <p>No users seeded yet — run npm run prisma:seed.</p>;
+  if (!user) return <p>No users seeded yet — run npm run db:seed.</p>;
 
   const ranked = await getRankedStoresForUser(user);
   const savedPlans = await prisma.routePlan.findMany({

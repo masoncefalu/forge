@@ -210,14 +210,27 @@ result as the secret value.
 3. [ ] App Store Connect API key created; `.p8` + Key ID + Issuer ID saved.
 4. [ ] On a Mac: `export CAPACITOR_SERVER_URL=https://<your-vercel-url>` then
        `npm run ios:bootstrap`.
-5. [ ] `npm run cap:open`, set Team + bundle ID, add Info.plist strings + icon.
-6. [ ] Manual **Product → Archive** → upload once, to prove the path end-to-end.
-7. [ ] Commit the generated `ios/` project (build artifacts gitignored).
-8. [ ] Add the Fastlane secrets to your chosen CI runner.
-9. [ ] `cd ios/App && bundle install && bundle exec fastlane beta` locally to
-       confirm the lane before wiring CI.
-10. [ ] Turn on the runner (`docs/ios-ci-cd-options.md`) — Codemagic (`ios-v*`
-        tag) or GitHub Actions (`workflow_dispatch`).
+5. [ ] Edit `ios/App/ExportOptions.plist`: replace `TEAM_ID_PLACEHOLDER` with
+       your 10-char team ID (nothing substitutes it automatically — a
+       dispatched release fails at `xcodebuild -exportArchive` otherwise).
+6. [ ] `npm run cap:open`, set Team + bundle ID, add Info.plist strings + icon.
+7. [ ] Manual **Product → Archive** → upload once, to prove the path end-to-end.
+8. [ ] Commit the generated `ios/` project (build artifacts gitignored) AND the
+       `package.json`/`package-lock.json` changes bootstrap made — CI's
+       `npm ci` must install `@capacitor/cli` for `cap sync` to run.
+9. [ ] If using `match` (`MATCH_GIT_URL` set): run
+       `cd ios/App && bundle exec fastlane match appstore` locally ONCE with a
+       writable checkout to seed the cert repo — CI runs match read-only and
+       cannot create certs on first run.
+10. [ ] Add the Fastlane secrets to your chosen CI runner.
+11. [ ] `cd ios/App && bundle install && bundle exec fastlane beta` locally to
+        confirm the lane before wiring CI.
+12. [ ] Turn on the runner (`docs/ios-ci-cd-options.md`) — Codemagic (`ios-v*`
+        tag) or GitHub Actions (`workflow_dispatch`). Pick ONE tag-triggered
+        system: both `codemagic.yaml` and `ios-release.yml` listen for `ios-v*`
+        tags, and two concurrent pipelines will collide on the TestFlight build
+        number — if Codemagic owns tags, remove the `push: tags:` trigger from
+        `.github/workflows/ios-release.yml` and keep it dispatch-only.
 
 ## What is NOT in scope here (deferred by design)
 

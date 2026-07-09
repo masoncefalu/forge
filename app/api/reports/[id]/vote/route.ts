@@ -16,7 +16,11 @@
 // The read (report + existing vote) → write (vote, trust, status) sequence
 // runs inside a single prisma.$transaction so two concurrent votes on the
 // SAME report can't interleave their reads and clobber each other's
-// status write (lost update). That alone doesn't cover trustScore, though:
+// status write (lost update). NOTE: that guarantee comes from SQLite
+// serializing writer transactions, not from the transaction API itself —
+// under Postgres READ COMMITTED the two reads wouldn't lock the row, so the
+// status transition needs a row lock (SELECT ... FOR UPDATE) or serializable
+// isolation when the datasource moves. It also doesn't cover trustScore:
 // a reporter can hold multiple reports, so two votes landing on two
 // DIFFERENT reports by the same reporter run in two separate transactions
 // that could each read the same starting trustScore and then both write a
@@ -29,22 +33,25 @@
 // statement so it can never observe a stale intermediate value.
 
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/currentUser";
 import { VOTE_TYPES } from "@/lib/constants";
-import { isSuppressed, voteTrustDelta } from "@/lib/scoring";
+import { isSuppressed, voteTrustDelta, TRUST_MIN, TRUST_MAX } from "@/lib/scoring";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: reportId } = await params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No current user" }, { status: 401 });
 
-  const { vote } = await req.json();
+  // A malformed or non-object body is the caller's error, not a 500.
+  const body = await req.json().catch(() => null);
+  const vote = body?.vote;
   if (!VOTE_TYPES.includes(vote)) {
     return NextResponse.json({ error: `vote must be one of ${VOTE_TYPES.join(", ")}` }, { status: 400 });
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const run = () => prisma.$transaction(async (tx) => {
     const report = await tx.report.findUnique({ where: { id: reportId } });
     if (!report) return { error: "Unknown report", status: 404 as const };
     if (report.userId === user.id) {
@@ -55,11 +62,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       where: { reportId_userId: { reportId, userId: user.id } },
     });
 
-    await tx.reportVote.upsert({
-      where: { reportId_userId: { reportId, userId: user.id } },
-      create: { reportId, userId: user.id, vote },
-      update: { vote, createdAt: new Date() },
-    });
+    // Skip the write entirely when the vote is unchanged: the upsert's
+    // createdAt refresh feeds lib/leads.ts#lastConfirmAgeDays, so writing it
+    // on a same-vote resubmit would let one voter reset the decay clock (and
+    // keep a lead's score fresh) indefinitely by re-clicking CONFIRMED.
+    if (existingVote?.vote !== vote) {
+      await tx.reportVote.upsert({
+        where: { reportId_userId: { reportId, userId: user.id } },
+        create: { reportId, userId: user.id, vote },
+        update: { vote, createdAt: new Date() },
+      });
+    }
 
     const delta = voteTrustDelta(
       (existingVote?.vote as "CONFIRMED" | "DEAD" | undefined) ?? null,
@@ -70,9 +83,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // Postgres MAX/MIN are aggregate-only (GREATEST/LEAST are the scalar
       // form there) — CASE is standard SQL and clamps identically on both,
       // matching CLAUDE.md's "don't design around SQLite-only features".
+      // Bounds come from lib/scoring.ts (TRUST_MIN/TRUST_MAX), the same
+      // constants clamp() uses, so this can't drift from the TS clamp.
       await tx.$executeRaw`UPDATE "User" SET "trustScore" = CASE
-        WHEN "trustScore" + ${delta} < 0 THEN 0
-        WHEN "trustScore" + ${delta} > 100 THEN 100
+        WHEN "trustScore" + ${delta} < ${TRUST_MIN} THEN ${TRUST_MIN}
+        WHEN "trustScore" + ${delta} > ${TRUST_MAX} THEN ${TRUST_MAX}
         ELSE "trustScore" + ${delta}
       END WHERE "id" = ${report.userId}`;
     }
@@ -95,6 +110,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return { confirms, deads, suppressed };
   });
+
+  let result: Awaited<ReturnType<typeof run>>;
+  try {
+    result = await run();
+  } catch (e) {
+    // SQLite's single-writer locking can reject one of two overlapping
+    // write transactions outright (surfaced by Prisma as P2034) instead of
+    // queueing it — a retryable conflict, not a server bug.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034") {
+      return NextResponse.json(
+        { error: "Another vote landed at the same time — please try again." },
+        { status: 409 }
+      );
+    }
+    throw e;
+  }
 
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });

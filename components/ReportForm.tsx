@@ -64,26 +64,31 @@ export default function ReportForm({
       sourceType: String(fd.get("sourceType")),
       notes: String(fd.get("notes") || "") || undefined,
     };
-    const res = await fetch("/api/reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setResult({ ok: false, text: data.error ?? `Failed (${res.status})` });
-      return;
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setResult({ ok: false, text: data?.error ?? `Failed (${res.status})` });
+        return;
+      }
+      setResult({
+        ok: true,
+        text: `Report submitted — confidence ${data?.score ?? "recorded"}. ${
+          data?.alertsCreated > 0
+            ? `${data.alertsCreated} nearby user(s) alerted.`
+            : "No alert fired (below threshold or deduped)."
+        }`,
+      });
+      router.refresh();
+    } catch {
+      setResult({ ok: false, text: "Network error — please try again." });
+    } finally {
+      setBusy(false);
     }
-    setResult({
-      ok: true,
-      text: `Report submitted — confidence ${data.score}. ${
-        data.alertsCreated > 0
-          ? `${data.alertsCreated} nearby user(s) alerted.`
-          : "No alert fired (below threshold or deduped)."
-      }`,
-    });
-    router.refresh();
   }
 
   const inputCls = "w-full rounded border border-stone-300 px-3 py-2 text-sm";

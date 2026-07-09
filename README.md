@@ -261,11 +261,18 @@ Anchors from the market: BrickSeek $9.99/$29.99 · Penny app $14.99/$29.99 · De
 ```bash
 git clone https://github.com/masoncefalu/forge.git pennyforge
 cd pennyforge
-npm install
-npx prisma migrate dev
-npx prisma db seed    # demo users, retailers, stores, products, reports, votes, alerts
+npm run setup         # installs deps, creates .env from .env.example, migrates + seeds SQLite
 npm run dev           # http://localhost:3000
 npm test              # scoring · duplicates · decay · dead votes · alert dedupe · guardrails
+```
+
+Or step by step (`.env` is gitignored — Prisma needs it for `DATABASE_URL`):
+
+```bash
+npm install
+cp .env.example .env
+npx prisma migrate dev
+npx prisma db seed    # demo users, retailers, stores, products, reports, votes, alerts
 ```
 
 No external paid services required. SQLite locally; `DATABASE_URL` swap migrates to Postgres.

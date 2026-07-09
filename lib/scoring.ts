@@ -104,8 +104,14 @@ export function ageInDays(from: Date, now: Date = new Date()): number {
 export const TRUST_DELTA = { CONFIRMED: 2, DEAD: -3 } as const;
 type VoteKind = keyof typeof TRUST_DELTA;
 
+// Exported so the vote route's atomic SQL clamp (which can't call clamp()
+// directly) bounds against these same values instead of duplicating 0/100
+// as bare literals that could drift from this file.
+export const TRUST_MIN = 0;
+export const TRUST_MAX = 100;
+
 export function applyTrustDelta(current: number, vote: VoteKind): number {
-  return clamp(current + TRUST_DELTA[vote], 0, 100);
+  return clamp(current + TRUST_DELTA[vote], TRUST_MIN, TRUST_MAX);
 }
 
 /**
@@ -113,9 +119,12 @@ export function applyTrustDelta(current: number, vote: VoteKind): number {
  * any) and applying the new one collapses to a single signed number because
  * revert and apply always move in the same direction for a 2-valued vote
  * (switching TO dead is a net decrease, switching TO confirmed is a net
- * increase) — so clamping once at the end is equivalent to the old
- * clamp-after-each-step logic, and this form is also safe to apply as an
- * atomic DB-level increment (see vote route) instead of a read-modify-write.
+ * increase) — so for any starting trust already inside [0, 100] clamping
+ * once at the end is equivalent to the old clamp-after-each-step logic, and
+ * this form is also safe to apply as an atomic DB-level increment (see vote
+ * route) instead of a read-modify-write. (A hand-edited out-of-range score
+ * is clamped differently than before and no longer normalized on a same-vote
+ * resubmit — acceptable, since no app code path can produce one.)
  */
 export function voteTrustDelta(oldVote: VoteKind | null, newVote: VoteKind): number {
   if (oldVote === newVote) return 0;
@@ -135,5 +144,5 @@ export function applyVoteChange(
   oldVote: VoteKind | null,
   newVote: VoteKind
 ): number {
-  return clamp(currentTrust + voteTrustDelta(oldVote, newVote), 0, 100);
+  return clamp(currentTrust + voteTrustDelta(oldVote, newVote), TRUST_MIN, TRUST_MAX);
 }

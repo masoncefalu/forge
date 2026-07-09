@@ -23,9 +23,12 @@ workflows:
         BUNDLE_ID: "com.pennyforge.app"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        # Numeric "Apple ID" of the App Store Connect app record (App Information
-        # → General → Apple ID). Fill in after creating the app record. REQUIRED.
-        APP_STORE_APPLE_ID: ""
+        # APP_STORE_APPLE_ID (numeric "Apple ID" of the App Store Connect app
+        # record, App Information → General) is REQUIRED and must be set in the
+        # pennyforge_ios environment group — deliberately NOT declared here,
+        # because a yaml-level value would shadow the group's. The same group
+        # must also provide CAPACITOR_SERVER_URL (the hosted URL the shell
+        # points at — see capacitor.config.ts).
       node: 20
       xcode: latest
       cocoapods: default
@@ -36,10 +39,12 @@ workflows:
         - pattern: "ios-v*"
           include: true
     scripts:
+      # No Next.js build: the shell runs in server.url mode (capacitor.config.ts),
+      # so cap sync only copies the committed public/ folder — a production build
+      # would be discarded, and this pipeline has none of ci.yml's DATABASE_URL
+      # or migration setup anyway.
       - name: Install JS dependencies
         script: npm ci
-      - name: Build Next.js assets
-        script: npm run build
       - name: Sync Capacitor iOS project
         script: npx cap sync ios
       - name: Set up code signing (managed by Codemagic)
@@ -52,16 +57,22 @@ workflows:
       - name: Bump build number to latest TestFlight + 1
         script: |
           set -e
-          if [ -z "$APP_STORE_APPLE_ID" ] || [ "$APP_STORE_APPLE_ID" = "0000000000" ]; then
+          if [ -z "$APP_STORE_APPLE_ID" ]; then
             echo "Error: APP_STORE_APPLE_ID must be set to a real numeric App ID." \
                  "Configure it in the pennyforge_ios environment group in Codemagic." >&2
             exit 1
           fi
-          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")
-          if [ -z "$LATEST" ] || ! [ "$LATEST" -ge 0 ] 2>/dev/null; then
-            echo "Error: Failed to fetch latest TestFlight build number (got: '$LATEST')." \
-                 "Check App Store Connect API credentials." >&2
+          # The guard must wrap the command itself: under `set -e` a failing
+          # command substitution inside a bare assignment kills the script
+          # before any diagnostic below it could run.
+          if ! LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID"); then
+            echo "Error: Failed to fetch the latest TestFlight build number." \
+                 "Check the App Store Connect integration/credentials." >&2
             exit 1
+          fi
+          if ! [ "$LATEST" -ge 0 ] 2>/dev/null; then
+            # No TestFlight builds yet (first release) — start numbering at 1.
+            LATEST=0
           fi
           cd ios/App && agvtool new-version -all $((LATEST + 1))
       - name: Build signed IPA

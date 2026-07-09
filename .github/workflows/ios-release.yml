@@ -1,10 +1,18 @@
-# PennyForge — iOS release via GitHub Actions + Fastlane (STAGED).
+# PennyForge — iOS release via GitHub Actions + Fastlane (STAGED — fallback
+# runner; docs/recommended-app-store-path.md recommends Codemagic as primary).
 #
-# SAFETY: this workflow is manual-only (workflow_dispatch) and tag-only
-# (ios-v* tags, none of which exist yet). It NEVER runs on normal pushes or PRs,
-# so it costs zero macOS minutes and cannot break the required `build-and-test`
-# check. The first step also no-ops gracefully if the Capacitor iOS project has
-# not been created yet (run `npm run ios:bootstrap` locally first).
+# SAFETY: this workflow only runs on workflow_dispatch or an ios-v* tag push
+# (none exist yet) — it NEVER runs on normal pushes or PRs, so it costs zero
+# macOS minutes and cannot break the required `build-and-test` check. The
+# first step also no-ops gracefully if the Capacitor iOS project has not been
+# created yet (run `npm run ios:bootstrap` locally first).
+#
+# DO NOT run this alongside Codemagic with both watching ios-v* tags — both
+# pipelines independently bump "latest TestFlight build + 1", and a single
+# tag push would fire two concurrent builds racing for the same build number.
+# Pick one tag-triggered runner (docs/mobile-automation-stack.md checklist
+# step 12); if Codemagic owns tags, delete the `push: tags:` trigger below and
+# keep this workflow dispatch-only.
 #
 # Activation checklist lives in docs/mobile-automation-stack.md. You must add the
 # secrets referenced under `env:` (Settings → Secrets and variables → Actions)
@@ -32,8 +40,12 @@ on:
 permissions:
   contents: read
 
+# Constant group (not ref-keyed) on purpose: a workflow_dispatch run
+# (refs/heads/main) and an ios-v* tag push land on different refs, and two
+# concurrent runs would both compute build number = latest TestFlight + 1 and
+# collide on upload. Serialize every release run behind one group.
 concurrency:
-  group: ios-release-${{ github.ref }}
+  group: ios-release
   cancel-in-progress: false
 
 jobs:
@@ -57,11 +69,28 @@ jobs:
         id: guard
         run: |
           if [ ! -d "ios/App" ]; then
-            echo "::warning::ios/App not found. Run 'npm run ios:bootstrap' and commit ios/ first."
+            echo "::warning::ios/App not found. Run 'npm run ios:bootstrap', then commit ios/ AND the package.json/package-lock.json changes it makes (cap sync needs @capacitor/cli from npm ci)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Guard — required secrets
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          missing=""
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 DEVELOPER_TEAM_ID CAPACITOR_SERVER_URL; do
+            if [ -z "${!name}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing — add them under Settings → Secrets and variables → Actions (see docs/github-secrets.md)."
+            exit 1
+          fi
+          # Without CAPACITOR_SERVER_URL, capacitor.config.ts silently omits
+          # server.url and the shell would ship pointing at the empty local
+          # webDir — a blank app that uploads with a green pipeline.
 
       - uses: actions/setup-node@v4
         if: steps.guard.outputs.ready == 'true'
@@ -69,13 +98,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      # No `npm run build` here: the shell runs in server.url mode (see
+      # capacitor.config.ts), so `cap sync` only copies the committed public/
+      # folder — a Next.js production build would be discarded and this job
+      # also has none of the DATABASE_URL/migrate setup ci.yml gives it.
       - name: Install JS dependencies
         if: steps.guard.outputs.ready == 'true'
         run: npm ci
-
-      - name: Build Next.js assets
-        if: steps.guard.outputs.ready == 'true'
-        run: npm run build
 
       - name: Install Ruby gems (CocoaPods, Fastlane — pinned by Gemfile)
         if: steps.guard.outputs.ready == 'true'
