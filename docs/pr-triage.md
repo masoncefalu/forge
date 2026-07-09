@@ -15,6 +15,24 @@ into the others. This board answers three questions per PR:
 2. **What order should it merge in?** (and what it conflicts or overlaps with)
 3. **Which session/agent produced it?** (from the branch name and PR body)
 
+## How to interpret an arriving PR (regardless of when it lands)
+
+Arrival order is meaningless in this repo: sessions complete at unpredictable times, so
+late-stage deliverables routinely land before early-stage ones and vice versa. When any new PR
+appears — no matter when — process it the same way:
+
+1. Read its template header to get **stage, workstream, and depends-on** (fall back to branch
+   name + body for older PRs without the header).
+2. Slot it into the correct workstream section below — its position on the board is set by its
+   **declared stage**, never by its PR number or open date.
+3. If its prerequisites haven't merged, mark it **"hold until #N"** in its Notes column. A held
+   PR is queued, not defective.
+4. Only escalate genuine problems: duplicate briefs, same-file conflicts, hard-boundary
+   violations, or Phase 1+ runtime code (deferred per roadmap).
+
+Reviewing agents (Copilot) carry the same model via `.github/copilot-instructions.md`; Claude
+sessions carry it via `CLAUDE.md` → "Out-of-order completion model".
+
 ## Merge-order rule (default for all open + future PRs)
 
 Merge in this order, top to bottom:

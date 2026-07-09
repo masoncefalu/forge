@@ -109,3 +109,25 @@ different roadmap stages — often out of order. Rules for every session:
    `CLAUDE.md` or `README.md` at a time.
 6. **Update the board.** When you open, merge, or supersede a PR, update `docs/pr-triage.md`
    accordingly (in your PR if it's docs; otherwise note it in the PR body for the maintainer).
+
+### Out-of-order completion model (embed this in your reasoning)
+
+Sessions finish at unpredictable times, so deliverables land **out of roadmap order** — a
+late-stage synthesis doc may merge before early-stage code, and vice versa. This is expected and
+permanent, not an error state. Consequences for every session:
+
+- **Never infer build sequence from PR numbers, branch dates, or merge history.** The only
+  sequence signals that matter are each PR's declared roadmap phase, workstream, and depends-on
+  header (see `.github/pull_request_template.md`) and the board in `docs/pr-triage.md`.
+- **Never treat the repo's current state as a linear snapshot.** Work for a stage may exist in an
+  open PR rather than on `main`; check open PRs before concluding something is "missing" or
+  building it yourself.
+- **Evaluate work against its own stage's assumptions.** A doc referencing not-yet-built features
+  is correct if those features belong to its phase. A missing prerequisite means "hold until
+  PR #N merges," not "this PR is wrong."
+- **Reconciliation is a distinct, final step.** Drift between parallel deliverables is resolved
+  by the synthesis workstream after everything lands — don't block or rework mid-flight PRs to
+  chase consistency with other in-flight PRs.
+
+The same model is embedded for Copilot reviewers in `.github/copilot-instructions.md`; keep the
+two in sync if either changes.
