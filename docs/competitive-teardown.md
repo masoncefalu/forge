@@ -1313,7 +1313,7 @@ Sources: [Visualping pricing](https://visualping.io/pricing) · [Visualping home
 
 | Gap | Who has half of it | Who has none of it | PennyForge's answer |
 |---|---|---|---|
-| Receipt/photo-verified proof tied to a confidence score | Hidden Clearances asserts team verification but shows no evidence | BrickSeek, Endless, RebelSavings, Deal Finder tools, Penny app, PennyCentral, Facebook groups | Receipt-gated reports + visible confidence score per item |
+| Receipt/photo-verified proof tied to a confidence score | Hidden Clearances asserts team verification but shows no evidence | BrickSeek, Endless, RebelSavings, Deal Finder tools, Penny app, PennyCentral, Facebook groups | Evidence-weighted reports (receipt, shelf tag, product photo, or text-only, per `lib/constants.ts`) with a visible confidence score per item — receipt evidence scores higher, but isn't required |
 | Store-level (not state/city) trust that self-heals over time | PennyCentral (state/city + confirmation counts) | Everyone else — either no decay (Facebook, Freebie Guy weekly lists) or no verification to decay in the first place | Confirm/dead voting + time decay in `lib/scoring.ts`/`lib/alerts.ts` |
 | Multi-store route planning ranked by expected value | Nobody | All 16 | `lib/route.ts` route planner is a categorical whitespace feature |
 | Per-trip ROI quantification (confidence-weighted expected value, not just list price) | Endless "profit calculator" (Premium tier, unverified inputs) | All UGC/community products | Expected value = retail value × confidence, surfaced per report and per route |
@@ -1329,9 +1329,9 @@ Sources: [Visualping pricing](https://visualping.io/pricing) · [Visualping home
 | Price/stock intelligence | User submits what they personally saw in-store, with an optional receipt/shelf photo | Automated polling of retailer pricing/inventory APIs or page payloads (BrickSeek, Endless, RebelSavings, HD Deal Finder, Hidden Clearances' scanning layer, Apify actors) |
 | Speed | Fast publish latency for user-submitted reports (PennyCentral's ~5 minutes is a good benchmark) | Continuous automated SKU monitoring against retailer systems marketed as being faster than any human ("Sniper X"–style tooling) |
 | Freshness signals | Confirm/dead voting, decay scoring, "last confirmed" timestamps on user reports | Scraped "live" inventory counts presented as real-time truth when the underlying access method is undisclosed |
-| Alerting | Synchronous, DB-backed alerts on new/confirmed community reports (per current MVP scope) | Bot-delivered alerts sourced from scraped or gray-sourced feeds |
+| Alerting | Synchronous, DB-backed alerts fanned out at report-submission time (per current MVP scope — confirmation votes affect score/suppression but don't yet re-trigger alerts) | Bot-delivered alerts sourced from scraped or gray-sourced feeds |
 | Location precision | Store-level and optional aisle/section field filled in by the reporter | Aisle/bay/stock-count data implied to come from retailer inventory systems with no disclosed authorization |
-| Community monitoring tools | Encouraging users to bookmark/report from the retailer's own official app or website (as PennyCentral, Penny Pinchin' Mom, and Freebie Guy explicitly teach) | Page-change monitors (Visualping/PageCrawl) or actor marketplaces (Apify) pointed at retailer clearance pages as a covert data pipeline |
+| Community monitoring tools | Encouraging users to self-check in-store (as PennyCentral, Penny Pinchin' Mom, and Freebie Guy explicitly teach), then submit through one of the four allowed report sources in `lib/compliance.ts` (in-store observation, receipt purchase, shelf tag photo, public store flyer) | Page-change monitors (Visualping/PageCrawl) or actor marketplaces (Apify) pointed at retailer clearance pages as a covert data pipeline; reporting sourced from a retailer's official app/website observation, which is not an allowed source type |
 | Growth/community | Reputation, badges, haul photos, opt-in receipt sharing | Leaked internal markdown lists reportedly sourced from retailer employees (documented as a claim in the DG penny-list ecosystem) |
 | Monetization | Subscriptions/rewards priced on convenience, routing, and verified accuracy | Paying for "insider" access predicated on gray data, or scan-quota-gating the in-store verification step itself (Penny app model) |
 
@@ -1355,7 +1355,7 @@ Sources: [Visualping pricing](https://visualping.io/pricing) · [Visualping home
 | Walmart already cut off BrickSeek's in-store data — proof the model is fragile | First-hand, in-store, user-generated data has no retailer-side kill switch |
 | No proof layer — no receipts, no verification of whether a deal actually rang up | Receipt-verified reports with visible confidence scores per item |
 | Best data gated behind escalating paywalls (Premium/Extreme/BrickSeek One + add-on packs) | Core trust-relevant data (confidence, confirmations, freshness) never paywalled; monetize convenience/routing instead |
-| No routing — users manually cross-reference multiple stores | Built-in multi-stop route planner ranked by expected value |
+| No routing — users manually cross-reference multiple stores | Built-in single-store route ranking by expected value (`lib/route.ts#rankStores`) today; multi-stop trip ordering (TSP) is a roadmap item, not yet built |
 | Community bolted on (Discord/Facebook) rather than the data source itself | Community *is* the data source — reputation and voting compound directly into trust, not a side channel |
 | No ROI framing — just a price, not an expected value | Expected value per item and per trip, confidence-weighted, shown up front |
 
