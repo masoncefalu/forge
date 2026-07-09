@@ -49,7 +49,7 @@ Merge in this order, top to bottom:
 
 | PR | Branch | What | Notes |
 |----|--------|------|-------|
-| #15 | `claude/init-nfcw97` | `CLAUDE.md` refresh (commands, architecture, iOS layer) | ⚠️ Conflicts with any other PR touching `CLAUDE.md` (including the coordination-conventions section added by this triage work). Merge, then rebase the others. |
+| #15 | `claude/init-nfcw97` | `CLAUDE.md` refresh (commands, architecture, iOS layer) | ⚠️ Conflicts with any other PR touching `CLAUDE.md` (including the "Multi-session coordination" section added by this triage work). Merge, then rebase the others. |
 
 ### 4 — Research / strategy docs (order-independent)
 

@@ -22,7 +22,7 @@ prs_json="$(gh pr list --state open --limit 200 \
 # names in .github/pull_request_template.md and docs/pr-triage.md.
 classify='
   def bucket:
-    (.headRefName + " " + (.title | ascii_downcase)) as $t
+    ((.headRefName + " " + .title) | ascii_downcase) as $t
     | if   ($t | test("fix|bug|race|crash|error|security"))                 then "1-runtime-code"
       elif ($t | test("skill|settings|tooling|ci|qa|test|script|harness"))  then "2-tooling"
       elif ($t | test("claude-?md|claude\\.md|init-"))                      then "3-context-docs"
