@@ -77,14 +77,14 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
         run: npm run build
 
-      - name: Sync Capacitor iOS project
-        if: steps.guard.outputs.ready == 'true'
-        run: npx cap sync ios
-
       - name: Install Ruby gems (CocoaPods, Fastlane — pinned by Gemfile)
         if: steps.guard.outputs.ready == 'true'
         working-directory: ios/App
         run: bundle install
+
+      - name: Sync Capacitor iOS project
+        if: steps.guard.outputs.ready == 'true'
+        run: npx cap sync ios
 
       - name: Install CocoaPods dependencies
         if: steps.guard.outputs.ready == 'true'
