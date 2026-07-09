@@ -10,7 +10,17 @@
 
 default_platform(:ios)
 
-APP_IDENTIFIER = ENV["APP_IDENTIFIER"] || "com.pennyforge.app"
+# Read app_identifier from Appfile config (respects manual Appfile edits),
+# fall back to ENV and default. This ensures consistency even if Appfile
+# is manually modified.
+APP_IDENTIFIER = begin
+  CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier) ||
+    ENV["APP_IDENTIFIER"] ||
+    "com.pennyforge.app"
+rescue
+  ENV["APP_IDENTIFIER"] || "com.pennyforge.app"
+end
+
 XCODEPROJ      = "App.xcodeproj"
 WORKSPACE      = "App.xcworkspace"
 SCHEME         = "App"

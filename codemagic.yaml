@@ -51,9 +51,9 @@ workflows:
           xcode-project use-profiles
       - name: Bump build number to latest TestFlight + 1
         script: |
-          if [ "$APP_STORE_APPLE_ID" = "0000000000" ]; then
-            echo "APP_STORE_APPLE_ID is still the placeholder — set the real" \
-                 "numeric Apple ID in the pennyforge_ios environment group." >&2
+          if [ -z "$APP_STORE_APPLE_ID" ] || [ "$APP_STORE_APPLE_ID" = "0000000000" ]; then
+            echo "Error: APP_STORE_APPLE_ID must be set to a real numeric App ID." \
+                 "Configure it in the pennyforge_ios environment group in Codemagic." >&2
             exit 1
           fi
           LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")
