@@ -33,6 +33,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/currentUser";
 import { VOTE_TYPES } from "@/lib/constants";
 import { isSuppressed, voteTrustDelta } from "@/lib/scoring";
+import { resolveStatusAfterVotes } from "@/lib/voteStatus";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: reportId } = await params;
@@ -81,16 +82,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const deads = await tx.reportVote.count({ where: { reportId, vote: "DEAD" } });
     const suppressed = isSuppressed({ confirms, deads });
 
-    if (suppressed && report.status !== "SUPPRESSED") {
-      await tx.report.update({
-        where: { id: reportId },
-        data: { status: "SUPPRESSED", previousStatus: report.status },
-      });
-    } else if (!suppressed && report.status === "SUPPRESSED") {
-      await tx.report.update({
-        where: { id: reportId },
-        data: { status: report.previousStatus ?? "PENDING", previousStatus: null },
-      });
+    const statusUpdate = resolveStatusAfterVotes(
+      { status: report.status, previousStatus: report.previousStatus },
+      suppressed
+    );
+    if (statusUpdate) {
+      await tx.report.update({ where: { id: reportId }, data: statusUpdate });
     }
 
     return { confirms, deads, suppressed };

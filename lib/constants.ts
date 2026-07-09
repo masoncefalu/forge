@@ -20,12 +20,15 @@ export const REPORT_STATUSES = [
   "APPROVED",
   "REJECTED",
   "SUPPRESSED",
+  "EXPIRED",
 ] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
-// PENDING is the default on creation and SUPPRESSED is vote-driven only
-// (lib/scoring.ts#isSuppressed via the vote route) — moderators can only
-// ever move a report to APPROVED or REJECTED, never set those two directly.
+// PENDING is the default on creation, SUPPRESSED is vote-driven only
+// (lib/scoring.ts#isSuppressed via the vote route), and EXPIRED is a derived,
+// read-time-only status computed by lib/reports.ts#isExpired (never written
+// to the DB — no background job in the MVP) — moderators can only ever move
+// a report to APPROVED or REJECTED, never set those three directly.
 export const MODERATABLE_STATUSES = ["APPROVED", "REJECTED"] as const;
 export type ModeratableStatus = (typeof MODERATABLE_STATUSES)[number];
 
