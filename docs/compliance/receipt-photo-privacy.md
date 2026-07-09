@@ -4,20 +4,27 @@
 > for counsel to review before launch.
 
 In the MVP, evidence is a placeholder URL: `Report.evidenceUrl` is an optional `http`/`https`
-string and no files are stored (see `prisma/schema.prisma` and `docs/product-spec.md`). Real file
-upload arrives in **Phase 1** and receipt OCR in **Phase 3**. The rules below bind those builds
-**before they ship** — they are acceptance criteria for the upload and OCR features, not
-retrofits. Data-minimization is the design stance: a receipt proves a price at a store on a date;
-everything else on it is someone's personal or financial data and must never become publicly
-visible.
+string and no files are stored (see `prisma/schema.prisma` and `docs/product-spec.md`). That URL
+field is accepted for **any** evidence type today, including `RECEIPT` (`components/ReportForm.tsx`),
+and the lead detail page renders it as a public "view" link with no redaction step
+(`app/leads/[id]/page.tsx`) — so a user can point `evidenceUrl` at an externally-hosted receipt
+photo right now and have it surface publicly, unredacted. The redaction rules below therefore bind
+that external-URL path **today**, not only the Phase 1 upload build and Phase 3 OCR they were
+originally written as acceptance criteria for. Data-minimization is the design stance: a receipt
+proves a price at a store on a date; everything else on it is someone's personal or financial data
+and must never become publicly visible.
 
 Evidence types are the `Report.evidenceType` values: `RECEIPT`, `SHELF_TAG_PHOTO`,
 `PRODUCT_PHOTO`, `TEXT_ONLY`.
 
-## Receipt redaction requirements (Phase 1, before any receipt is publicly visible)
+## Receipt redaction requirements (applies now to external evidence URLs; also binds Phase 1 uploads)
 
 A receipt image must pass through redaction before it renders on any page visible to another
-user. The following must be masked; the remainder is the evidentiary value and stays visible.
+user. **Current gap:** no redaction step exists for today's external-URL path — `evidenceUrl`
+accepts any link for a `RECEIPT` report and renders it unredacted. Until the Phase 1 upload
+pipeline ships with server-side redaction, moderators must reject `RECEIPT` reports whose
+`evidenceUrl` visibly exposes any of the elements below (`docs/compliance/moderator-safety.md`).
+The following must be masked; the remainder is the evidentiary value and stays visible.
 
 | Element on receipt | Treatment | Why |
 |---|---|---|

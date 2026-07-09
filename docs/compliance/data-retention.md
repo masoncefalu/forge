@@ -56,11 +56,19 @@ Two options for a deleted user's reports:
 Recommended transaction, in order:
 
 1. Hard-delete the user's `ReportVote` rows (votes carry no community content beyond the tally;
-   affected reports' confirm/dead counts recompute on next scoring pass).
+   affected reports' confirm/dead counts recompute on next scoring pass). Each of those votes
+   already applied a trust-score delta to the report's reporter at cast time
+   (`app/api/reports/[id]/vote/route.ts`); hard-deleting the vote rows alone does **not** reverse
+   that delta. The cascade must also reverse or recompute the affected reporters' `User.trustScore`
+   so a surviving reporter's trust isn't left permanently inflated or deflated by a since-deleted
+   user's votes.
 2. Hard-delete the user's `Alert` rows (their inbox) and `RoutePlan` rows (contain
    home-location-derived data).
-3. Reassign the user's `Report` rows to a tombstone user; optionally offer the user a
-   scrub-my-notes choice, since `Report.notes` is free text that may self-identify.
+3. Reassign the user's `Report` rows to a tombstone user, and scrub `Report.notes` on every
+   reassigned report as a standard part of this step, not an opt-in extra. `Report.notes` is free
+   text rendered on the public lead detail page (`app/leads/[id]/page.tsx`) and commonly contains
+   self-identifying info (name, phone, email, "my neighbor works here," etc.); leaving it attached
+   to a tombstoned report indefinitely would defeat the point of anonymizing the account.
 4. Delete or blank the original `User` row: email, handle, homeZip/homeLat/homeLng removed;
    trust score not carried over.
 

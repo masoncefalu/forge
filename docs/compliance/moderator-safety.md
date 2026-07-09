@@ -10,10 +10,13 @@ how they do it safely — for users, for store employees, and for themselves.
 
 ## PII exposure rules
 
-Moderators review reports **before** they are public, and from Phase 1 onward (real file upload
-per `docs/product-spec.md`) that includes receipt and evidence photos **before** redaction review
-per `docs/compliance/receipt-photo-privacy.md`. That means moderators are the people most likely
-to see payment fragments, loyalty numbers, names, or faces.
+`PENDING` reports are already visible in the public feed, search, and route planner the moment
+they're submitted (`lib/leads.ts`) — moderation is not a pre-publication gate for report text,
+prices, or the placeholder `evidenceUrl` link. What moderators do see first is **evidence media
+before Phase 1 redaction**: once real file upload ships, receipt and evidence photos pass through
+the moderation queue before redaction review (`docs/compliance/receipt-photo-privacy.md`). That is
+where moderators are the people most likely to see payment fragments, loyalty numbers, names, or
+faces before anyone else does.
 
 - Never copy, screenshot, download, or share submission contents outside the moderation tooling.
   Not to personal devices, not to Discord, not to other moderators via DM — discussion of a
@@ -29,7 +32,7 @@ to see payment fragments, loyalty numbers, names, or faces.
 | Prohibited | Concretely |
 |---|---|
 | Doxxing | Never reveal a user's identity, location pattern, or store haunts — and never reveal store employees' identities. This is an immediate-removal offense for moderators, same as for users. |
-| **Front-running deals** | The queue shows `PENDING` reports the public cannot see. Using that preview to shop is a conflict of interest. Rule: a moderator may not visit a store, buy an item, or route-plan around a lead they learned of from a **pending** report until that report is `APPROVED` and publicly visible. Delaying approval, or rejecting a valid report, to keep a lead private is treated as moderator fraud. Moderate first, shop with everyone else after. |
+| **Front-running deals** | `PENDING` reports are already visible in the public feed, search, and route planner the instant they're submitted (`lib/leads.ts`) — the moderation queue is not a private preview. The residual conflict is queue *access*, not visibility: a moderator scanning `/admin` can notice a fresh pending lead before it surfaces prominently to an ordinary feed browser. Rule: a moderator may not use queue access to act on a lead materially faster than an ordinary user could, and may not delay approval or reject a valid report to reduce competition for a lead they intend to act on themselves. Moderate on the merits, shop like everyone else. |
 | Editing user content | Moderators remove; they never rewrite. The moderation endpoint enforces this today — `app/api/reports/[id]/moderate/route.ts` accepts only a status change to `APPROVED` or `REJECTED` (`MODERATABLE_STATUSES`), with no content-edit path. Keep it that way; a moderator who "fixes" a report becomes its author, which is bad for both trust and the Section 230 posture noted in the UGC policy. |
 | Retaliation via rejection | Rejecting reports because of who submitted them (a rival hunter, someone who argued with you) rather than what they contain. Rejections must be grounded in the UGC policy or evidence quality. |
 | Vote manipulation | Moderators may vote as ordinary users, but never coordinate votes to suppress or boost a lead (`lib/scoring.ts#isSuppressed` is a community signal, not a mod tool). |
@@ -62,8 +65,15 @@ goods:
 
 1. **Remove from public view** — reject via the moderation queue. Do **not** delete the
    underlying row: `REJECTED` retains the record (reporter, timestamps, content) while keeping it
-   out of the feed, alerts, and route planner. Retention matters if law enforcement or a retailer
-   later sends a lawful request.
+   out of the feed, route planner, and *future* alert fan-out for this report (all three filter to
+   `PENDING`/`APPROVED`). Retention matters if law enforcement or a retailer later sends a lawful
+   request.
+   **Gap:** alert fan-out happens immediately at submission time, before any moderator sees the
+   report (`app/api/reports/route.ts`), and `/alerts` loads a recipient's inbox by `userId` only —
+   it does not check the linked report's current status (`app/alerts/page.tsx`). Rejecting a
+   report does **not** retract `Alert` rows already sent to nearby users for illegal-activity or
+   PII content; there is no recall mechanism today. Treat this as a reason to triage fast, not a
+   reason rejection alone is sufficient protection.
 2. **Document** — log the report ID, what it described, and the action taken in the mod channel.
 3. **Escalate to an ADMIN** when: the content is fraud *instructions or advocacy* (immediate-ban
    territory per the UGC policy), the same user has done it before, it suggests organized

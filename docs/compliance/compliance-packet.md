@@ -61,9 +61,10 @@ a flagged Phase 1 gap. CAPTAINs scope to their region (policy-only today). Full 
 ## Trademarks & disclaimers essentials
 
 Retailer names: plain text, descriptive/nominative use only — never logos, brand colors, or
-implied endorsement. Required disclaimers (not-affiliated, price-accuracy, store-discretion,
-YMMV) ship today in the `app/layout.tsx` footer; extend to every price-bearing surface. User
-photos incidentally showing retailer marks are acceptable UGC but must never be lifted into
+implied endorsement. Required disclaimers: not-affiliated, price-accuracy, and be-kind-to-employees
+ship today in the `app/layout.tsx` footer; store-discretion and YMMV copy are drafted but **not yet
+shipped** anywhere — they still need to land on the lead-detail and report-submission surfaces.
+User photos incidentally showing retailer marks are acceptable UGC but must never be lifted into
 PennyForge's own marketing. Product images must be licensed/user-submitted, never hotlinked. Full
 detail: `docs/compliance/trademarks-and-disclaimers.md`.
 

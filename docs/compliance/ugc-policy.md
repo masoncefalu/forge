@@ -119,9 +119,11 @@ Simple, documented, two-person path:
   Florida) are a "for counsel" watch item, though PennyForge is likely below their user
   thresholds at launch.
 - **User license grant.** Terms of service must include a non-exclusive, royalty-free, worldwide
-  license from users to PennyForge for submitted content (reports, notes, photos), for the
-  purposes of **operating and promoting the service**, with the user warranting they took the
-  photo and it doesn't violate this policy. Users retain ownership.
+  license from users to PennyForge for submitted content (reports, notes, photos), scoped to
+  **operating and moderating the service** (in-product display, moderation, and content-policy
+  enforcement) — not marketing or promotional reuse, consistent with the no-marketing-reuse rule
+  in `docs/compliance/trademarks-and-disclaimers.md`. The user warrants they took the photo and it
+  doesn't violate this policy. Users retain ownership.
 - **Age gate (COPPA).** 13+ minimum age, asserted at signup when Phase 1 real auth lands
   (`lib/currentUser.ts` is the swap point). No under-13 data collection; no age-targeting.
 - **No exploitation framing anywhere.** Marketing, UI copy, and community messaging must describe
