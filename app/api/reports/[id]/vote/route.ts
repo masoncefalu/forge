@@ -66,7 +66,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       vote
     );
     if (delta !== 0) {
-      await tx.$executeRaw`UPDATE "User" SET "trustScore" = MAX(0, MIN(100, "trustScore" + ${delta})) WHERE "id" = ${report.userId}`;
+      // CASE, not MAX/MIN: SQLite's multi-arg MAX/MIN are scalar, but in
+      // Postgres MAX/MIN are aggregate-only (GREATEST/LEAST are the scalar
+      // form there) — CASE is standard SQL and clamps identically on both,
+      // matching CLAUDE.md's "don't design around SQLite-only features".
+      await tx.$executeRaw`UPDATE "User" SET "trustScore" = CASE
+        WHEN "trustScore" + ${delta} < 0 THEN 0
+        WHEN "trustScore" + ${delta} > 100 THEN 100
+        ELSE "trustScore" + ${delta}
+      END WHERE "id" = ${report.userId}`;
     }
 
     const confirms = await tx.reportVote.count({ where: { reportId, vote: "CONFIRMED" } });
