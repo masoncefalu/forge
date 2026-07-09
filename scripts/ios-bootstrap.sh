@@ -21,8 +21,22 @@ cd "$(dirname "$0")/.."
 
 if [ "$(uname)" != "Darwin" ]; then
   echo "⚠️  Capacitor iOS builds require macOS + Xcode. You're on $(uname)."
-  echo "    You can still install the JS deps here, but 'cap add ios' will fail"
-  echo "    without an Xcode toolchain. Continue on a Mac for the native steps."
+  echo "    Installing JS deps only; native iOS steps require macOS."
+  echo "    Please run this script on a Mac to complete the iOS setup."
+
+  echo "==> [1/2] Installing Capacitor runtime and CLI (JS only)"
+  npm install \
+    @capacitor/core \
+    @capacitor/cli \
+    @capacitor/ios \
+    @capacitor/camera \
+    @capacitor/geolocation
+
+  echo "==> [2/2] Done (JS deps only)."
+  echo ""
+  echo "⚠️  To complete the iOS setup, run this script on a Mac:"
+  echo "    npm run ios:bootstrap"
+  exit 0
 fi
 
 echo "==> [1/4] Installing Capacitor runtime, iOS platform, and native plugins"
