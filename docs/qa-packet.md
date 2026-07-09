@@ -9,12 +9,17 @@ run, not just read from source.
 
 ## 0. Bottom line
 
-- **46/46 unit tests pass** (`npm test`), **43/43 simulation checks pass**
+- **46/46 unit tests pass** (`npm test`), **41/41 simulation checks pass**
   (`npx tsx scripts/qa-simulation.ts`), lint and `tsc --noEmit` are both clean.
-- **All 13 acceptance criteria from `docs/testing.md` were exercised live** against a running
-  `npm run dev` instance with seeded data and pass.
+- **12 of the 13 acceptance criteria from `docs/testing.md` were exercised live** against a
+  running `npm run dev` instance with seeded data and passed. Acceptance criterion #12 (alert
+  dedupe: two rapid submissions on the same product+store should produce only one alert per
+  recipient) could **not** be exercised as written — see §5: fresh submissions by seeded users
+  never clear `ALERT_THRESHOLD`, so no organic alert is ever created for dedupe to act on in the
+  first place.
 - **One real product gap found** (not a bug — a tuning gap): see §5, "Alert threshold is
-  effectively unreachable from a first submission."
+  effectively unreachable from a first submission." This gap is what blocks acceptance
+  criterion #12 above.
 
 ---
 
@@ -27,7 +32,7 @@ run, not just read from source.
 | 3 | Duplicate same-day report prevention | `tests/reports.test.ts` | §3 | POST /api/reports twice same day → 201 then 409 | ✅ |
 | 4 | Stale lead decay (7d penny half-life, clearance slower) | `tests/scoring.test.ts` | §4 | seed report r7 (20 days old) shows decayed score | ✅ |
 | 5 | Dead-vote suppression (2+ deads > confirms) | `tests/scoring.test.ts` | §5 | 2 live DEAD votes → `suppressed:true`, vanishes from feed, blocked from admin-approve (409) | ✅ |
-| 6 | Alert dedupe (per-recipient, 24h window) | `tests/alerts.test.ts` | §6 | seed alerts render on `/alerts`, mark-read works | ✅ (see §5 gap) |
+| 6 | Alert dedupe (per-recipient, 24h window) | `tests/alerts.test.ts` | §6 | seed alerts render on `/alerts`, mark-read works; **organic alert creation not exercisable — acceptance #12 blocked, see §5** | ⚠️ pure logic only |
 | 7 | Route ranking (confidence-weighted ROI, gas cost) | `tests/route.test.ts` | §7 | `/route` renders ranked stores | ✅ |
 | 8 | Unsafe source blocking (allowlist) | `tests/compliance.test.ts` | §8 | POST with `SCRAPED_SITE`/`PRIVATE_API` → 422, no row created | ✅ |
 | — | Self-vote rejection | — | — | vote on own report → 403 | ✅ |

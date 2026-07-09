@@ -18,8 +18,34 @@ import { assertSafeSource, ALLOWED_SOURCE_TYPES, BLOCKED_SOURCE_TYPES } from "..
 import type { EvidenceType } from "../lib/constants";
 
 let failures = 0;
+
+/**
+ * Structural equality, independent of object key order (JSON.stringify is
+ * order-sensitive and produces false failures for semantically-equal
+ * objects). Handles primitives, arrays, and plain objects — sufficient for
+ * this script's fixture shapes, no library needed.
+ */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => deepEqual(v, b[i]));
+  }
+
+  const aKeys = Object.keys(a as Record<string, unknown>);
+  const bKeys = Object.keys(b as Record<string, unknown>);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every(
+    (k) =>
+      Object.prototype.hasOwnProperty.call(b, k) &&
+      deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])
+  );
+}
+
 function check(name: string, actual: unknown, expected: unknown) {
-  const pass = JSON.stringify(actual) === JSON.stringify(expected);
+  const pass = deepEqual(actual, expected);
   if (!pass) failures++;
   console.log(`  ${pass ? "PASS" : "FAIL"}  ${name}`);
   if (!pass) console.log(`        expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
@@ -55,14 +81,19 @@ section("2. Evidence weighting");
   checkTrue("strict ordering receipt > shelfTag > productPhoto > textOnly",
     receipt > shelf && shelf > photo && photo > text);
   // KNOWN PRODUCT GAP: alerts are scored at submission time (0 confirms,
-  // 0 age), so the alert score is just base + trustBonus. Even a RECEIPT
-  // needs reporterTrust >= 97 to reach ALERT_THRESHOLD (60) — no seeded
-  // user (max trust 90) can fire an alert on submission. Flagged in
-  // docs/qa-packet.md; threshold/base tuning is a product decision.
-  checkTrue("receipt at default trust does NOT clear alert threshold (documented gap)", receipt < ALERT_THRESHOLD);
-  checkTrue("receipt at trust 97+ is the only submission that alerts",
-    confidenceScore({ evidenceType: "RECEIPT", reporterTrust: 97 }) >= ALERT_THRESHOLD);
-  checkTrue("text-only alone can NOT clear alert threshold at default trust", text < ALERT_THRESHOLD);
+  // 0 age), so the alert score is just base + trustBonus. A RECEIPT report's
+  // score is 45 + round(trust/100 * 15); clearing ALERT_THRESHOLD (60) needs
+  // trustBonus >= 15, which needs reporterTrust >= 97 (96 rounds the bonus
+  // down to 14 -> score 59; 97 rounds it up to 15 -> score 60). No seeded
+  // user (max trust 90, forge_admin) can fire an alert on submission.
+  // Flagged in docs/qa-packet.md; threshold/base tuning is a product
+  // decision.
+  checkTrue("receipt at trust 50 (schema @default(50)) does NOT clear alert threshold (documented gap)", receipt < ALERT_THRESHOLD);
+  check("receipt at trust 96 scores 59 and does NOT clear alert threshold (boundary, below)",
+    confidenceScore({ evidenceType: "RECEIPT", reporterTrust: 96 }), 59);
+  check("receipt at trust 97 scores 60 and clears alert threshold (boundary, at)",
+    confidenceScore({ evidenceType: "RECEIPT", reporterTrust: 97 }), 60);
+  checkTrue("text-only at trust 50 (schema @default(50)) does NOT clear alert threshold", text < ALERT_THRESHOLD);
   check("bases match documented hierarchy", EVIDENCE_BASE, { RECEIPT: 45, SHELF_TAG_PHOTO: 32, PRODUCT_PHOTO: 22, TEXT_ONLY: 10 });
 }
 
