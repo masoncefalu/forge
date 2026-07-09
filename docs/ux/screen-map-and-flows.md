@@ -34,11 +34,12 @@ be added later without a rewrite.
 | 8 | Alerts | MVP (built) | `/alerts` | Mock inbox of threshold-gated, deduped alerts with read/unread state; real push/email is a later phase. |
 | 9 | Route planner | MVP (built) | `/route` | Ranks stores by expected lead value minus round-trip gas cost from the user's home point; save named plans. |
 | 10 | Admin moderation | MVP (built) | `/admin` | Role-gated (ADMIN/CAPTAIN) queue of pending, suppressed, and rejected reports with approve/reject actions. |
-| 11 | Compliance / About | MVP (net-new, to build) | proposed `/about` | Dedicated explanation of the allowlist policy ("why we don't scrape"), evidence-type hierarchy, and community norms. Today this only exists as one line in the page footer (`app/layout.tsx`) plus `docs/compliance.md`, which no end user ever sees. |
+| 11 | Compliance / About | MVP (net-new, to build) | proposed `/trust` | Dedicated explanation of the allowlist policy ("why we don't scrape"), evidence-type hierarchy, and community norms. Today this only exists as one line in the page footer (`app/layout.tsx`) plus `docs/compliance.md`, which no end user ever sees. |
 | 12 | Settings / Profile | MVP (net-new, to build) | proposed `/settings` | Edit home ZIP/location (used by the Route planner, currently seed-data only with no edit UI), locale (schema field `User.locale` exists but is unused — see below), and view own trust score / report history. |
 | 13 | Leaderboard *(bonus — outside the original 12-screen scope)* | MVP (built) | `/leaderboard` | Contributor trust ranking (trust score, reports, approvals, confirms received) — the visible face of the reputation system. Worth keeping in the packet since it's already built and reinforces the community/trust pillar, but it wasn't one of the 12 target screens. |
 
-**Note on #1/#2 (Home vs. Feed):** there is currently one route, `/page.tsx`, serving both. That's
+**Note on #1/#2 (Home vs. Feed):** there is currently one route, `/` (served by `app/page.tsx`),
+serving both. That's
 a reasonable MVP simplification — don't split it just for the sake of matching the 12-screen list
 literally. The natural future split (Phase 1+) is: `/` becomes a lighter dashboard (a "your alerts"
 strip, "leads near your saved stores" teaser, trust score, quick links) and the full filterable
@@ -66,7 +67,7 @@ There is no real signup in the MVP — `lib/currentUser.ts` reads a `pf_user_id`
    /api/user` sets the `pf_user_id` cookie → `router.refresh()` re-renders the whole app as that
    user (their trust score, their alerts, their route-planner origin all change immediately).
 4. *(Optional, recommended first stop)* User visits the proposed Compliance/About screen
-   (`/about`, net-new) to understand the "first-hand, in-store reports only" rule and the
+   (`/trust`, net-new) to understand the "first-hand, in-store reports only" rule and the
    confirm/dead voting norms before submitting anything.
 5. User's first real action is almost always either browsing the Feed filters or jumping straight
    to Search (flow 2.2) — there's no forced tutorial step.
@@ -232,7 +233,7 @@ plain text links.
 | Overflow "More" (or profile/avatar menu) | Leaderboard | `/leaderboard` | Gamification check-in, not a core loop — occasional, not daily. |
 | Overflow "More" | Admin | `/admin` | Role-gated to ADMIN/CAPTAIN, a small fraction of users; already self-guards with an inline notice for everyone else. |
 | Overflow "More" | Settings / Profile | `/settings` (net-new) | Infrequent — set once, revisit rarely (home ZIP, locale). |
-| Overflow "More" | Compliance / About | `/about` (net-new) | Read-once reference material, not a repeat destination. |
+| Overflow "More" | Compliance / About | `/trust` (net-new) | Read-once reference material, not a repeat destination. |
 | Overflow "More" | Store selector | `/stores` (net-new) | Lower frequency than Search for most users since store choice is already reachable inline from the Feed filter and the Report form; a dedicated browse-by-store view is a secondary path, not a primary one. |
 | Overflow "More" | "Acting as" identity switcher | n/a (mock auth) | Kept out of the primary tab bar because it's explicitly a placeholder — `docs/product-spec.md` marks real auth as Phase 1. Fold it into the top of the "More" sheet for the MVP demo; don't invest further mobile chrome in it. |
 

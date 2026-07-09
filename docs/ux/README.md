@@ -46,14 +46,13 @@ shapes, field-by-field time budgets, Tailwind classes, error-state tables).
 | 12 | Settings / Profile | Net-new | `/settings` (proposed) |
 | 13 | Leaderboard *(bonus, outside the original 12)* | Built | `/leaderboard` |
 
-## One naming discrepancy, reconciled here
+## Route naming note
 
-`screen-map-and-flows.md`'s screen-map table (written before the detailed screen docs landed)
-uses a placeholder route `/about` for the Compliance/About screen. `screens-admin-and-compliance.md`,
-which did the full page design, deliberately lands on **`/trust`** instead, reasoning that a
-positive, non-legalistic URL/nav-label matters for a page whose whole point is to read as an
-invitation to verify, not a terms-of-service page. **`/trust` is the canonical route** — treat
-`/about` in the screen-map table as an earlier placeholder superseded by the detailed spec.
+The Compliance/About screen's canonical route is **`/trust`** — `screens-admin-and-compliance.md`,
+which did the full page design, deliberately picked it over the more legalistic-sounding
+`/compliance` or `/about`, reasoning that a positive, non-legalistic URL/nav-label matters for a
+page whose whole point is to read as an invitation to verify, not a terms-of-service page. All
+route references across the packet use `/trust` consistently.
 
 ## Ground rules every doc in this packet follows
 

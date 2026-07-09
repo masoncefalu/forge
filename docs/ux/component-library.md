@@ -4,7 +4,7 @@ Definitive reference for the shared component vocabulary: what exists today (Par
 other UX docs (`screens-discovery.md`, `screens-search-and-lead.md`,
 `screen-map-and-flows.md`, and any settings/admin screen specs) should build against instead of
 re-inventing (Part B). Every prop and class name below was verified against the component source
-in `/home/user/forge/components/` and the relevant `lib/*.ts` files, not inferred.
+in `components/` and the relevant `lib/*.ts` files, not inferred.
 
 Product feel this vocabulary is in service of: fast, local, trust-first, proof-first — show
 confidence clearly, explain *why* a lead is trusted, show *when* it was last verified, show *what
