@@ -157,7 +157,13 @@ describe("enum contracts", () => {
   });
 
   it("pins REPORT_STATUSES", () => {
-    expect(REPORT_STATUSES).toEqual(["PENDING", "APPROVED", "REJECTED", "SUPPRESSED"]);
+    expect(REPORT_STATUSES).toEqual([
+      "PENDING",
+      "APPROVED",
+      "REJECTED",
+      "SUPPRESSED",
+      "EXPIRED",
+    ]);
   });
 
   it("pins MODERATABLE_STATUSES", () => {
