@@ -86,10 +86,10 @@ App Review notes draft language (the "is this a scraper?" preemption) already ex
 ## Location permission
 
 The MVP functions **without device GPS**: users enter a home ZIP (`User.homeZip`) and the route
-planner uses stored home coordinates for distance math (`lib/route.ts`) — no runtime location
-permission is needed at all for a Phase 4 shell wrapping current functionality, and the shell
-should not request one it does not use (unused permission requests are themselves a rejection
-trigger — checklist §5/§6).
+planner (`lib/routePlanner.ts`) computes distance from stored home coordinates, which `lib/route.ts`
+uses to score and rank stores — no runtime location permission is needed at all for a Phase 4
+shell wrapping current functionality, and the shell should not request one it does not use
+(unused permission requests are themselves a rejection trigger — checklist §5/§6).
 
 If precise device location is requested later (live "near me now" or Phase 2 geofenced alerts):
 

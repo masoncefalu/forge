@@ -22,7 +22,7 @@ does not collect it.
 | Account identifiers | `User.email`, `User.handle`, `User.id` (cuid) | Yes | Email is unique per account and never shown to other users. Handle is the public identity. |
 | Session cookie | `pf_user_id` (set by `POST /api/user`, read by `lib/currentUser.ts`) | Yes | First-party, functional-only cookie holding the user's cuid. `httpOnly`, `sameSite=lax`, `secure` in production. Mock auth in the MVP; replaced by real auth sessions in Phase 1. |
 | Role & reputation | `User.role`, `User.trustScore` | Yes (derived) | Trust score (0–100) is computed from report/vote history, not user-supplied. Role is USER / CAPTAIN / ADMIN. |
-| Coarse home location | `User.homeZip`, `User.homeLat`, `User.homeLng` | Yes (optional) | **User-entered, not device GPS, in the MVP.** Used only for route-planner distance math (`lib/route.ts`); never displayed to other users (`docs/compliance.md`). Nullable — the account works without it. |
+| Coarse home location | `User.homeZip`, `User.homeLat`, `User.homeLng` | Yes (optional) | **User-entered, not device GPS, in the MVP.** Distance computation happens in `lib/routePlanner.ts`; `lib/route.ts` handles pure scoring/ranking using that distance. Never displayed to other users (`docs/compliance.md`). Nullable — the account works without it. |
 | Language preference | `User.locale` | Yes | `en` / `es`; no i18n UX is wired up yet. |
 | User-generated reports | `Report`: `priceCents`, `dealType`, `evidenceType`, `evidenceUrl`, `sourceType`, `notes`, `reportDate`, `status` | Yes | The product's core content. `notes` is free text — users should be told not to include personal information in it. `evidenceUrl` is a placeholder URL string in the MVP (no file upload exists). |
 | Votes | `ReportVote`: `vote` (CONFIRMED / DEAD), one per user per report | Yes | Community verification signal feeding `lib/scoring.ts`. |
@@ -46,7 +46,7 @@ label must be revised first.
 | Operate the service: feed, search, lead detail | Reports, votes, stores, products | `app/page.tsx`, `app/search/page.tsx` |
 | Confidence scoring & freshness decay | Reports, votes, reporter trust score | `lib/scoring.ts` |
 | Alerts | High-signal leads, recipient user ID | `lib/alerts.ts` |
-| Route planning & ROI ranking | Home location, store locations, lead scores | `lib/route.ts` |
+| Route planning & ROI ranking | Home location, store locations, lead scores | `lib/routePlanner.ts` (DB fetch + distance calculation), `lib/route.ts` (pure scoring/ranking) |
 | Community trust & recognition | Trust score, handle, report/approval counts | `/leaderboard` |
 | Moderation | Reports, reporter identity, roles | `/admin`, ADMIN/CAPTAIN gating |
 | Fraud & abuse prevention | Vote patterns, duplicate-report keys, trust score | `lib/reports.ts` dedupe, dead-vote suppression |

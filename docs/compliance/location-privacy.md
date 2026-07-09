@@ -14,8 +14,8 @@ product work, uses it for exactly one purpose, and never turns it into a trail.
 
 | Data | Where it lives | How it's used | Who can see it |
 |---|---|---|---|
-| Home ZIP | `User.homeZip` | Feed/alert region filtering by user choice | The user themselves only |
-| Home coordinates | `User.homeLat` / `User.homeLng` | Server-side route-planner distance math only (`lib/geo.ts#haversineMiles` → `lib/route.ts`) | Never rendered to any other user |
+| Home ZIP | `User.homeZip` | Display-only (e.g. shown on `/route`) — never used to filter the feed or alerts | The user themselves only |
+| Home coordinates | `User.homeLat` / `User.homeLng` | Server-side distance math in `lib/routePlanner.ts` (calls `lib/geo.ts#haversineMiles`), then scored/ranked by `lib/route.ts` | Never rendered to any other user |
 | Store coordinates | `Store.lat` / `Store.lng` | Feed, route planner, store pages | Public — these are public business addresses, not personal data |
 | Device GPS | Not collected | — | — |
 
@@ -23,10 +23,10 @@ Key facts about the MVP:
 
 - Home location is **user-entered**, not sensed. There is no device GPS collection, no geolocation
   browser API call, and no background location of any kind in this repo today.
-- `User.homeLat`/`homeLng` are consumed exclusively server-side: `lib/geo.ts` computes a one-way
-  distance from the user's home point to each candidate store, and `lib/route.ts` folds that
-  distance into the route score. The coordinates themselves never leave the server in any response
-  rendered to another user.
+- `User.homeLat`/`homeLng` are consumed exclusively server-side: `lib/routePlanner.ts` calls
+  `haversineMiles` from `lib/geo.ts` to compute a one-way distance from the user's home point to
+  each candidate store, and `lib/route.ts` then uses that distance to score and rank stores. The
+  coordinates themselves never leave the server in any response rendered to another user.
 - `RoutePlan.stopsJson` stores per-store `distanceMiles` derived from the home point. Route plans
   are private to their owning user; treat `distanceMiles` as derived location data (a set of
   distances to known points can trilaterate a home) and never expose another user's route plan.
@@ -41,7 +41,7 @@ Key facts about the MVP:
 | 2 | Reports are attributed to a **store**, never to a user's position. The location on a lead is always `Store.lat`/`Store.lng` — a public business address. |
 | 3 | No "users near you", "contributors nearby", or any feature that reveals proximity between two users. |
 | 4 | No location history or timeline feature, ever. PennyForge stores at most one current home point per user, not a sequence of positions. |
-| 5 | Alerts and the feed filter by **user-chosen** state/ZIP, not by tracked or inferred position. |
+| 5 | The feed filters by explicit, user-chosen query params (state, retailer, store). Alerts are driven by distance from the user's entered home coordinates (`homeLat`/`homeLng`), not ZIP/state matching. Neither is based on tracked or inferred position. |
 | 6 | Any new feature that would render a contributor-linked point on a map must implement the fuzzing requirements below before shipping — this is a launch blocker, not a fast-follow. |
 
 ## Fuzzing requirements for future features
