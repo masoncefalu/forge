@@ -20,7 +20,8 @@ compliance — never raw data volume, and never language that reads as exploitat
   Lady's penny-list content) — high category recognition, low explanation cost.
 - "Forge" reads as *craft, build, make real* — a well-worn developer/maker metaphor (SourceForge,
   CurseForge, Autodesk Forge) with no history of "forgery" confusion in those brands.
-- The compound is currently unregistered as a US trademark (0 hits on a Trademarkia search).
+- The compound is currently unregistered as a US trademark (0 hits on a Trademarkia search
+  conducted in July 2026 — re-verify before relying on this, as trademark filings change).
 - The name is already load-bearing throughout this codebase (schema comments, docs, README,
   product spec) — a rename has real switching cost.
 
@@ -242,7 +243,7 @@ name in marketing).
 
 **App title tagline (≤30 chars):** `Verified local clearance finds` (30 chars)
 
-**Short promo line (≤80 chars):** `Receipt-verified clearance finds near you, scored and mapped by real shoppers.` (79 chars)
+**Short promo line (≤80 chars):** `Receipt-verified clearance finds near you, scored and mapped by real shoppers.` (78 chars)
 
 **Full description (~320 words):**
 
@@ -316,8 +317,11 @@ Grounded in `lib/compliance.ts` and the existing footer in `app/layout.tsx`. Ite
 > store signage. That's the complete list. We do not scrape retailer or third-party websites. We
 > do not access retailers' internal systems, private endpoints, or employee tools. We do not
 > ingest, repurchase, or repost data from other deal services. And we never use bots or automated
-> tools to probe store inventory or prices. Our submission system enforces this: any report that
-> isn't first-hand, in-store evidence is rejected before it's ever saved.
+> tools to probe store inventory or prices. Our submission system enforces this at the door: any
+> report that doesn't declare a valid first-hand source type — an in-store observation, a receipt,
+> a shelf-tag photo, or public store signage — is rejected before it's ever saved. (What we can't
+> do is verify a shopper's real-world honesty beyond the source type and evidence they provide —
+> that's what community confirm/dead voting and reporter trust scores are for.)
 
 **4. Community conduct / honest reporting**
 > Report what you saw. Nothing else.
