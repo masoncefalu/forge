@@ -84,6 +84,12 @@ jobs:
               missing="$missing $name"
             fi
           done
+          # MATCH_PASSWORD is only required when fastlane match is enabled
+          # (MATCH_GIT_URL set) — otherwise match never runs and the password
+          # is unused.
+          if [ -n "$MATCH_GIT_URL" ] && [ -z "$MATCH_PASSWORD" ]; then
+            missing="$missing MATCH_PASSWORD"
+          fi
           if [ -n "$missing" ]; then
             echo "::error::Missing required secrets:$missing — add them under Settings → Secrets and variables → Actions (see docs/github-secrets.md)."
             exit 1
