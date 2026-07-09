@@ -52,7 +52,7 @@ Decisions locked across all agents. Do not re-litigate these in future sessions.
 | 7 | Business logic lives in framework-free `lib/*.ts` functions, fully unit-tested; route handlers and components stay thin | `CLAUDE.md` |
 | 8 | Enum-like fields are `String` columns validated against `lib/constants.ts` (Prisma/SQLite has no native enum) | `lib/constants.ts` |
 | 9 | Mock auth behind a stable `getCurrentUser()` interface (`lib/currentUser.ts`) so real auth is a one-file swap | `lib/currentUser.ts` |
-| 10 | Users see **badges, never raw scores**; "last confirmed X ago" always visible | `README.md` (Trust Scoring) |
+| 10 | Users should see **badges, never raw scores**, with "last confirmed X ago" always visible — a locked *design target* (README Trust Scoring / Design Language), **not yet implemented**: `components/ConfidenceBadge.tsx` currently renders the raw 0–100 score, and no UI surfaces last-confirm time (only report age). Verified 2026-07-09; see R10 | `README.md` (Trust Scoring), `components/ConfidenceBadge.tsx` |
 | 11 | Postgres migration is a `datasource` swap; no SQLite-only features beyond the documented `reportDate` workaround | `CLAUDE.md`, schema comments |
 | 12 | Design language: "Thermal Receipt Modernism" — mono type for prices/SKUs, clearance-tag yellow as sole accent, no coupon-blog cheese | `README.md` (Design Language) |
 | 13 | iOS path: **Capacitor wrap of the existing Next.js app + Fastlane/Codemagic CI** (scaffolded, activatable), not an immediate React Native rewrite — see contradiction R2 below | `docs/recommended-app-store-path.md`, `capacitor.config.ts` |
@@ -135,6 +135,38 @@ Decisions locked across all agents. Do not re-litigate these in future sessions.
   SiwA. **Resolution:** Guideline 4.8 is a hard App Review requirement, not a preference — Sign in
   with Apple must ship alongside whatever provider is chosen. If Supabase Auth is the Phase-1
   choice (R6), configure Supabase's Apple OAuth provider rather than treating SiwA as optional.
+- **R10 — Trust-badge UX: design target vs. shipped UI.** The README (Trust Scoring / Design
+  Language) and `docs/scoring.md` describe "badges, never raw numbers" and "last confirmed X ago"
+  as if they were current UX. **Verified 2026-07-09 by reading the code:**
+  `components/ConfidenceBadge.tsx` renders the raw `{score}` (0–100) directly, and no page
+  displays a last-confirmed timestamp — `LeadView`/`toLeadView` (`lib/leads.ts`) computes
+  `lastConfirmAgeDays` for the *scoring decay calculation* but nothing renders it in the UI; leads
+  and alerts show `timeAgo(createdAt)` (report age) instead. **Resolution:** this is a real,
+  hard-requirement UX gap in the Phase 0 build, not a resolved design decision — surfaced here so
+  a future session fixes the badge/freshness display instead of assuming it's done or silently
+  downgrading the requirement. See the corrected wording in Sections 6, 9, 10, and 16.
+- **R11 — Codemagic secret contract incomplete in earlier drafts of this doc.** Section 5/15
+  originally listed only the Fastlane/GitHub Actions secret set for the iOS CI path. **Verified by
+  reading `codemagic.yaml` directly:** the primary runner (R5) separately requires
+  `APP_STORE_APPLE_ID` and `BUNDLE_ID` in its own `pennyforge_ios` environment group (not a GitHub
+  secret), and the build-number step exits with an error if `APP_STORE_APPLE_ID` is unset or the
+  placeholder value. **Resolution:** corrected in Sections 5 and 15 — both secret contracts
+  (GitHub/Fastlane and Codemagic/ASC) must be provisioned before Phase 3 activation, not just one.
+- **R12 — Alert-suppression scope overstated in earlier drafts.** Section 9 originally said
+  suppression removes a report "from the feed, alerts, and routing." **Verified by reading
+  `app/alerts/page.tsx`:** the alerts inbox query is `where: { userId: user.id }` with no join or
+  filter on the underlying report's status, so alerts created before a report is later suppressed
+  remain visible and still link to the (now-suppressed) lead. **Resolution:** corrected wording in
+  Section 9 — suppression stops *future* alert fan-out for that report; it does not retroactively
+  remove alerts already delivered. `docs/scoring.md`'s similar phrasing should be read the same
+  way (a docs-correction candidate for that file, out of scope for this PR).
+- **R13 — Capacitor `webDir` did not exist.** `capacitor.config.ts` sets `webDir: 'public'` and
+  its own comment asserted `public/` is "a valid, committed folder." **Verified:** `git ls-files`
+  showed no `public/` directory anywhere in the repo, and `scripts/ios-bootstrap.sh` never creates
+  one before invoking `cap add ios`/`cap sync ios`, so first-time activation would have failed
+  immediately. **Resolution:** fixed directly in this PR — a placeholder `public/index.html` was
+  added (low-risk, one file, no behavior change to the Next.js app, which doesn't serve from
+  `public/` in server-rendered mode) so the Capacitor config's own claim is now true.
 
 ## 3. Verified vs Unverified Claims
 
@@ -195,7 +227,7 @@ Tailwind 3.4 · Prisma 6.7 + SQLite · Vitest 3 · tsx (seeding).
 | Apprise | 1–2 | Alert dispatch fan-out: email + web push first; Discord webhook/Telegram as delivery channels only |
 | Tesseract / receipt-parser lineage → Apple Vision on-device | 2–3 | Receipt OCR; on-device parsing is both a privacy feature and an App Review asset |
 | Impact / Walmart Affiliate API / eBay Partner Network | 2 | Catalog enrichment + resale comps via official affiliate feeds — never scraped |
-| Capacitor + Fastlane + Codemagic (scaffolded in-repo) | 3–4 | iOS wrapper + signed CI builds; activation via `npm run ios:bootstrap`. Verified wiring: ASC API key + Fastlane `match`/automatic signing (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8`/`DEVELOPER_TEAM_ID`/`FASTLANE_APPLE_ID`/`CAPACITOR_SERVER_URL`), **not** a manual `.p12`/`.mobileprovision` flow — see R4. Codemagic is primary, GitHub Actions (`ios-release.yml`) is the fallback/readiness-check runner — see R5. |
+| Capacitor + Fastlane + Codemagic (scaffolded in-repo) | 3–4 | iOS wrapper + signed CI builds; activation via `npm run ios:bootstrap`. Verified wiring: ASC API key + Fastlane `match`/automatic signing (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8`/`DEVELOPER_TEAM_ID`/`FASTLANE_APPLE_ID`/`CAPACITOR_SERVER_URL`), **not** a manual `.p12`/`.mobileprovision` flow — see R4. Codemagic is primary, GitHub Actions (`ios-release.yml`) is the fallback/readiness-check runner — see R5. Codemagic additionally needs `APP_STORE_APPLE_ID` (and `BUNDLE_ID`) set in its own `pennyforge_ios` environment group — see R11. |
 | Postgres (Supabase) + pg-boss | 1 | Hosted DB + job queue when concurrent writes/hosting require it. `.env.example` stages Supabase env vars specifically; confirm with Mason before Phase 1 kickoff — see R6 |
 | next-intl | 1 | i18n scaffolding so Spanish is a locale file, not a refactor |
 
@@ -204,9 +236,11 @@ Tailwind 3.4 · Prisma 6.7 + SQLite · Vitest 3 · tsx (seeding).
 **Wedge:** trust, workflow, and community economics — not data freshness from indefensible sources.
 
 1. **Receipt-verified confidence** — evidence weighting nobody in the niche does.
-2. **Waze model** — reporter reputation rises on confirmations, falls on flags; badges, never raw scores.
+2. **Waze model** — reporter reputation rises on confirmations, falls on flags; target UX is
+   badges, never raw scores (not yet implemented — see R10).
 3. **Route ROI** — trips ranked by confidence × value ÷ cost; a Saturday hunt with math behind it.
-4. **Honest freshness** — aggressive decay, dead-vote suppression, "last confirmed 6h ago" visible.
+4. **Honest freshness** — aggressive decay, dead-vote suppression, target UX is "last confirmed
+   6h ago" visibility (not yet implemented — see R10).
 5. **Contributor economics** — verified contributions earn Pro credits; the moat compounds and can't be scraped.
 6. **Compliance as moat** — when C&Ds hit gray-data rivals, PennyForge keeps standing.
 7. **Bilingual from day one** (Phase 1+) — Spanish UX the niche ignores.
@@ -273,8 +307,14 @@ score = clamp( (evidenceBase + trustBonus + confirmBonus − deadPenalty) × dec
 - **Dead penalty:** −18 per dead vote, uncapped ("it's gone" is a stronger signal than "still there").
 - **Decay:** `0.5^(effectiveAgeDays / halfLife)`; half-life 7d (PENNY) / 14d (CLEARANCE); a recent
   confirmed vote resets the effective age — community verification keeps leads alive.
-- **Suppression:** `deads >= 2 && deads > confirms` → status `SUPPRESSED`, removed from feed,
-  alerts, and routing; reverses automatically, restoring `previousStatus` exactly.
+- **Suppression:** `deads >= 2 && deads > confirms` → status `SUPPRESSED`, removed from the feed
+  (`lib/leads.ts`) and route planner (`lib/routePlanner.ts`), and blocks *future* alert fan-out for
+  that report; reverses automatically, restoring `previousStatus` exactly. **Correction (verified
+  2026-07-09, see R12):** suppression does **not** retroactively remove alert rows already
+  delivered before the report was suppressed — `app/alerts/page.tsx` fetches by `userId` only,
+  with no report-status filter, so an already-alerted user still sees that alert (now pointing at
+  a suppressed lead) in their inbox. `docs/scoring.md`'s "dropping out of ... alerts" phrasing
+  should be read as "stops generating new alerts," not "purges past ones."
 - **Reporter trust:** +2 per confirmation received, −3 per dead vote, clamped [0,100]; vote
   *changes* apply only the net delta (`voteTrustDelta`) so toggling can't inflate or crater trust.
 - **Alerts:** fire at score ≥ 60 to users within 75mi of the store (haversine), excluding the
@@ -299,7 +339,11 @@ dark-first palette (`ink` #101418, `paper` #F7F5F0, `tag` #FFCE00 as the *only* 
 #2E9E6B, `dead` #C24E42 clay — never alarm-red, `mute` #8A9099); monospace for prices/SKUs/
 timestamps/scores, grotesk for UI body; the **Verification Seal** badge ("RECEIPT-VERIFIED · 7 RPT
 · 3 ST · 2D") wherever trust matters and nowhere else; plain active copy, no exclamation points,
-no emoji chrome, no starburst badges, no raw score numbers where a badge belongs.
+no emoji chrome, no starburst badges, no raw score numbers where a badge belongs. **Gap against
+this requirement, verified 2026-07-09:** `components/ConfidenceBadge.tsx` currently renders the
+raw numeric score (0–100) directly, not a non-numeric Verification Seal, and no screen displays
+"last confirmed X ago" (report age only). Treat this as an open Phase-0.5 polish item against a
+locked requirement, not a future-phase nice-to-have — see R10.
 
 ## 11. Compliance Guardrails
 
@@ -402,12 +446,23 @@ Everything a fresh Claude Code session needs to work on PennyForge safely:
 - **Deferred list** (Section 7) is a *do-not-build-yet* list, not a backlog to freelance on.
 - **Mobile scaffolding** is present but dormant: `capacitor.config.ts`, `codemagic.yaml`,
   `scripts/ios-bootstrap.sh`, `tooling/ios/fastlane/` — activation is Phase 3. The wired secret
-  contract is the ASC-API-key/Fastlane set in `mobile-automation-stack.md`/`tooling-options.md`
-  (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `DEVELOPER_TEAM_ID`, `FASTLANE_APPLE_ID`,
-  `CAPACITOR_SERVER_URL`, optional `MATCH_*`) — verified against `ios-release.yml` and
-  `tooling/ios/fastlane/Fastfile` directly (see R4). `docs/github-secrets.md` and
+  contract for the GitHub Actions/Fastlane path is the ASC-API-key set in
+  `mobile-automation-stack.md`/`tooling-options.md` (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`,
+  `DEVELOPER_TEAM_ID`, `FASTLANE_APPLE_ID`, `CAPACITOR_SERVER_URL`, optional `MATCH_*`) — verified
+  against `ios-release.yml` and `tooling/ios/fastlane/Fastfile` directly (see R4).
+  **Codemagic (the primary runner, R5) needs its own, separate contract:** `APP_STORE_APPLE_ID`
+  and `BUNDLE_ID` in a `pennyforge_ios` environment group inside the Codemagic dashboard, not
+  GitHub secrets — `codemagic.yaml` fails fast in its build-number step if `APP_STORE_APPLE_ID` is
+  unset (verified by reading `codemagic.yaml` directly). See R11. `docs/github-secrets.md` and
   `docs/credentials-needed.md` describe a superseded manual-signing secret set; a docs-correction
   pass should reconcile them before anyone provisions credentials. Never paste secrets in chat.
+- **Capacitor `webDir` gap (verified 2026-07-09, fixed in this PR — see R13):** `capacitor.config.ts`
+  sets `webDir: 'public'` and its own comment claimed `public/` is "a valid, committed folder," but
+  no `public/` directory existed in the repo and `scripts/ios-bootstrap.sh` never creates one —
+  `cap add ios`/`cap sync ios` would have failed on first activation. A placeholder
+  `public/index.html` was added alongside this doc so the claim is now true; if it's later
+  deleted, re-add it (or point `webDir` at a real build output) before running
+  `npm run ios:bootstrap`.
 - **Docs drift flagged for cleanup** (found by cross-reading all 13 `docs/*.md` mobile/backend
   files against the actual workflow/Fastlane/`.env.example` code): secret naming (R4), primary CI
   runner framing (R5), primary Phase-1 backend host (R6, a real open decision — ask Mason), CI
@@ -499,7 +554,12 @@ explains "why this lead scores X". Show "last confirmed X ago" freshness. Footer
 every pricing surface: community-reported, varies by store, nothing guaranteed, not affiliated
 with any retailer, be kind to store employees. Design language: dark-first, monospace for
 prices/SKUs/timestamps, one yellow accent (#FFCE00) reserved for verified-deal moments; no
-starbursts, no emoji chrome, no coupon-blog styling.
+starbursts, no emoji chrome, no coupon-blog styling. NOTE if the workspace already has the MVP
+built: as of 2026-07-09, `components/ConfidenceBadge.tsx` renders the raw numeric score and no
+screen shows "last confirmed X ago" — this is a known gap against the rule above, not a signal
+that the rule changed. Fix the component (non-numeric tone/label, e.g. a confidence tier word or
+the Verification Seal format) and surface `lastConfirmAgeDays` (already computed in
+`lib/leads.ts#toLeadView`) in the UI rather than reinterpreting the requirement away.
 
 DO NOT BUILD YET (deferred; schema may anticipate them but no implementation): real auth, camera
 barcode scanning, receipt OCR, real push/email delivery, Postgres migration, TSP multi-stop
