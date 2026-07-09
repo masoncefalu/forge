@@ -2,9 +2,9 @@
 
 ## Critical context: PRs here arrive OUT OF ORDER — by design
 
-This repo is being built by **many parallel agent sessions at once** (~19 Claude Code sessions,
-each spawning sub-agents), each assigned a different stage of the roadmap. Sessions finish at
-unpredictable times, so:
+This repo is being built by **many parallel agent sessions at once** (on the order of a dozen or
+more Claude Code sessions, each spawning sub-agents), each assigned a different stage of the
+roadmap. Sessions finish at unpredictable times, so:
 
 - A **late-stage** deliverable (e.g. a final-integration synthesis doc, App Store checklist, or
   Phase 3 planning doc) may land **before** early-stage work has merged.
