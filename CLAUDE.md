@@ -88,3 +88,24 @@ npx prisma studio      # inspect the local SQLite DB visually
 ```
 
 See `docs/testing.md` for the full acceptance-test checklist and manual QA script.
+
+## Multi-session coordination (many parallel agent sessions open PRs here)
+
+Many Claude Code sessions work on this repo simultaneously, each producing branches and PRs for
+different roadmap stages — often out of order. Rules for every session:
+
+1. **Check the board first.** Read `docs/pr-triage.md` and the open PR list (or run
+   `scripts/pr-dashboard.sh`) before starting. If an open PR already covers your brief, do not
+   duplicate it — three duplicate PR clusters have already happened this way.
+2. **Fill in the PR template completely.** `.github/pull_request_template.md` asks for your
+   session/agent name, workstream, roadmap phase, dependencies, and overlaps. Reviewers rely on
+   this header to tell parallel PRs apart.
+3. **Branch naming:** `claude/<workstream-or-brief>-<random-suffix>` — the brief part should be
+   descriptive (`pennyforge-compliance-guardrails-…`), not generic (`intelligent-shannon-…`).
+4. **Respect merge order:** runtime code → tooling → context-doc updates (one at a time) →
+   independent research docs → synthesis docs last. Details in `docs/pr-triage.md`.
+5. **Docs-only sessions write to disjoint paths.** Claim a directory (`docs/business/`,
+   `docs/ux/`, …) rather than editing shared files; only one in-flight PR should touch
+   `CLAUDE.md` or `README.md` at a time.
+6. **Update the board.** When you open, merge, or supersede a PR, update `docs/pr-triage.md`
+   accordingly (in your PR if it's docs; otherwise note it in the PR body for the maintainer).
